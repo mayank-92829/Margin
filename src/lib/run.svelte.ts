@@ -86,6 +86,8 @@ export const run = $state({
   status: "",
   /** Folder that relative paths in the output are resolved against. */
   cwd: "",
+  /** Run buttons show in the title bar only once something has been run, so the window stays plain until then. */
+  used: false,
   /** True while a program is running and reading its input. */
   acceptsInput: false,
 });
@@ -249,6 +251,7 @@ export async function build(andRun: boolean): Promise<void> {
   const name = basename(path).replace(/\.[^.]+$/, "");
   const vars = { file: path, dir: dirname(path), name, base: basename(path), exe: `${dirname(path)}\\${name}.exe` };
   clearOutput();
+  run.used = true;
   run.open = true;
   run.cwd = cwd;
   const external = andRun && settings.runInTerminal;
@@ -276,7 +279,7 @@ export async function build(andRun: boolean): Promise<void> {
     } else if (!andRun) {
       run.phase = "done";
       run.status = "Nothing to compile";
-      emit(`.${ext} files run directly — use Run (F5).\n`, "info");
+      emit(`.${ext} files run directly — use Run (Ctrl+1).\n`, "info");
       return;
     }
 

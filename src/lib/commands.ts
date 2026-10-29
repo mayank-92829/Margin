@@ -148,7 +148,7 @@ async function toggleZen(): Promise<void> {
   } catch {
     // Fullscreen is cosmetic here; zen mode still hides the chrome.
   }
-  if (ui.zen) toast("Zen mode — press F11 or Esc to exit", { ms: 2200 });
+  if (ui.zen) toast("Zen mode — press Esc to exit", { ms: 2200 });
 }
 
 export function exitZen(): void {
@@ -431,7 +431,7 @@ export const commands: Command[] = [
   { id: "file.closeOthers", title: "Close Other Tabs", category: "File", run: () => closeTabs(tabsState.list.filter((t) => t.id !== tabsState.activeId).map((t) => t.id)) },
   { id: "file.closeSaved", title: "Close Saved Tabs", category: "File", run: () => closeTabs(tabsState.list.filter((t) => !t.dirty).map((t) => t.id)) },
   { id: "file.closeAll", title: "Close All Tabs", category: "File", run: () => closeTabs(tabsState.list.map((t) => t.id)) },
-  { id: "file.reopenClosed", title: "Reopen Closed Tab", category: "File", keys: ["Ctrl+Shift+T"], run: reopenClosed },
+  { id: "file.reopenClosed", title: "Reopen Closed Tab", category: "File", keys: ["Ctrl+Alt+R"], run: reopenClosed },
   { id: "file.reload", title: "Reload from Disk", category: "File", run: () => activeTab() && reloadTab(activeTab()!) },
   { id: "file.reopenEncoding", title: "Reopen with Encoding…", category: "File", run: () => pickEncoding("reopen") },
   { id: "file.saveEncoding", title: "Save with Encoding…", category: "File", run: () => pickEncoding("save") },
@@ -456,7 +456,7 @@ export const commands: Command[] = [
   { id: "edit.findNext", title: "Find Next", category: "Edit", keys: ["F3"], run: () => findStep(1) },
   { id: "edit.findPrev", title: "Find Previous", category: "Edit", keys: ["Shift+F3"], run: () => findStep(-1) },
   { id: "edit.gotoLine", title: "Go to Line…", category: "Edit", keys: ["Ctrl+G"], run: gotoLine },
-  { id: "edit.dateTime", title: "Insert Time/Date", category: "Edit", keys: ["F5"], when: () => !runnable(), run: edit(tx.insertDateTime) },
+  { id: "edit.dateTime", title: "Insert Time/Date", category: "Edit", keys: ["Ctrl+Shift+;"], run: edit(tx.insertDateTime) },
   { id: "edit.selectAllMatches", title: "Select All Occurrences", category: "Edit", hint: "Ctrl+Shift+L", run: edit(selectSelectionMatches) },
   { id: "edit.toggleComment", title: "Toggle Comment", category: "Edit", hint: "Ctrl+/", run: edit(toggleComment) },
   { id: "edit.duplicateLine", title: "Duplicate Line", category: "Edit", hint: "Shift+Alt+↓", run: edit(copyLineDown) },
@@ -526,7 +526,7 @@ export const commands: Command[] = [
   { id: "view.statusBar", title: "Toggle Status Bar", category: "View", run: () => setSetting("showStatusBar", !settings.showStatusBar) },
   { id: "view.focusMode", title: "Toggle Focus Mode", category: "View", run: toggle("focusMode", "Focus mode") },
   { id: "view.typewriter", title: "Toggle Typewriter Scrolling", category: "View", run: toggle("typewriterMode", "Typewriter scrolling") },
-  { id: "view.zen", title: "Toggle Zen Mode", category: "View", keys: ["F11"], run: toggleZen },
+  { id: "view.zen", title: "Toggle Zen Mode", category: "View", keys: ["Ctrl+Alt+Z", "F11"], run: toggleZen },
   { id: "view.alwaysOnTop", title: "Toggle Always on Top", category: "View", run: toggleAlwaysOnTop },
   {
     id: "view.vim",
@@ -543,9 +543,9 @@ export const commands: Command[] = [
   { id: "view.zoomReset", title: "Reset Zoom", category: "View", keys: ["Ctrl+0", "Ctrl+Numpad0"], run: () => zoom(0) },
 
   // Run
-  { id: "run.run", title: "Compile & Run", category: "Run", keys: ["F5"], when: runnable, run: () => build(true) },
-  { id: "run.build", title: "Compile", category: "Run", keys: ["Ctrl+Shift+B"], run: () => build(false) },
-  { id: "run.stop", title: "Stop Program", category: "Run", keys: ["Shift+F5"], when: isRunning, run: stop },
+  { id: "run.run", title: "Compile & Run", category: "Run", keys: ["Ctrl+1"], run: () => build(true) },
+  { id: "run.build", title: "Compile", category: "Run", keys: ["Ctrl+2"], run: () => build(false) },
+  { id: "run.stop", title: "Stop Program", category: "Run", keys: ["Ctrl+Shift+X"], when: isRunning, run: stop },
   { id: "run.output", title: "Toggle Output Panel", category: "Run", keys: ["Ctrl+J", "Ctrl+`"], run: toggleOutput },
 
   // Tabs
@@ -555,7 +555,7 @@ export const commands: Command[] = [
     id: `tab.goto${i + 1}`,
     title: i === 8 ? "Go to Last Tab" : `Go to Tab ${i + 1}`,
     category: "Tabs",
-    keys: [`Ctrl+${i + 1}`],
+    keys: [`Alt+${i + 1}`],
     run: () => activateIndex(i === 8 ? -1 : i),
   })),
 

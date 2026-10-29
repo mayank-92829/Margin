@@ -4,7 +4,7 @@
   import { tick } from "svelte";
   import { runCommand, shortcutLabel, commands } from "../lib/commands";
   import { settings } from "../lib/settings.svelte";
-  import { build, isRunning, runnerFor, stop } from "../lib/run.svelte";
+  import { build, isRunning, run, runnerFor, stop } from "../lib/run.svelte";
   import { toggleSidebar } from "../lib/sidebar.svelte";
   import { activate, activeTab, closeTab, closeTabs, moveTab, newTab, reopenClosed, tabsState, type Tab } from "../lib/tabs.svelte";
   import { openMenu, toast, ui, type MenuItem } from "../lib/ui.svelte";
@@ -12,7 +12,7 @@
 
   const win = getCurrentWindow();
   const current = $derived(activeTab());
-  const runner = $derived(current?.kind === "text" ? runnerFor(current.path) : null);
+  const runner = $derived(run.used && current?.kind === "text" ? runnerFor(current.path) : null);
   const running = $derived(isRunning());
   let strip: HTMLDivElement | undefined = $state();
   let drag: { id: string; startX: number; moved: boolean; index: number } | null = null;
@@ -131,9 +131,11 @@
 </script>
 
 <header class="titlebar" data-tauri-drag-region>
-  <button class="icon-btn side-btn" class:on={ui.sidebar.open} aria-label="Toggle sidebar" title="Sidebar ({hint('view.sidebar')})" onclick={toggleSidebar}>
-    <Icon name="sidebar" />
-  </button>
+  {#if ui.sidebar.open}
+    <button class="icon-btn side-btn" aria-label="Hide sidebar" title="Hide sidebar ({hint('view.sidebar')})" onclick={toggleSidebar}>
+      <Icon name="sidebar" />
+    </button>
+  {/if}
   <div class="tabs" bind:this={strip} onwheel={wheel} role="tablist">
     {#each tabsState.list as tab, i (tab.id)}
       <div
@@ -322,9 +324,6 @@
     align-self: center;
     margin-left: 6px;
     flex-shrink: 0;
-  }
-  .side-btn.on {
-    background: none;
   }
   .run {
     display: flex;

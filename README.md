@@ -4,6 +4,7 @@ A fast, minimal text editor for Windows — Notepad's simplicity with a real edi
 
 - **Opens instantly**, even multi‑gigabyte files (they open in a read‑only viewer with search; files up to 512 MB can be switched to full editing).
 - **Markdown opens formatted** by default — or side‑by‑side / plain text (Settings → Markdown). Tables, task checkboxes you can click, highlighted code, math (`$…$`, `$$…$$`) and Mermaid diagrams.
+- **Stays out of the way**: it looks like Notepad until you ask for more. The run buttons and output panel appear the first time you press `Ctrl+1`; the sidebar only when you open it.
 - **Compile & run** C, C++, Rust, Go, Java, Python, JavaScript and more with one key. Output appears in a panel under the editor, programs can read input you type there, and compiler errors are clickable.
 - **Files sidebar** (`Ctrl+B`) for the folder you're working in — slides away when you don't need it.
 - **40 themes** (light + dark pairs, high contrast), all checked for readable contrast, follows Windows light/dark, live preview while choosing. Import any VS Code theme, or customize one as a JSON file.
@@ -27,22 +28,24 @@ To work on the UI without the Rust side, run `npm run dev` and open `http://loca
 
 ## Shortcuts
 
+Everything works without the F-keys (which need `Fn` on most laptops); `F1`, `F3` and `F11` remain as extras.
+
 | | |
 |---|---|
 | New tab / Open / Save / Save as | `Ctrl+N` · `Ctrl+O` · `Ctrl+S` · `Ctrl+Shift+S` |
-| Close tab / Reopen closed tab | `Ctrl+W` · `Ctrl+Shift+T` |
-| Next / previous tab, tab 1–9 | `Ctrl+Tab` · `Ctrl+Shift+Tab` · `Ctrl+1…9` |
-| Find / Replace / next / previous | `Ctrl+F` · `Ctrl+H` · `F3` · `Shift+F3` |
+| Close tab / Reopen closed tab | `Ctrl+W` · `Ctrl+Alt+R` |
+| Next / previous tab, tab 1–9 | `Ctrl+Tab` · `Ctrl+Shift+Tab` · `Alt+1…9` |
+| Find / Replace / next / previous | `Ctrl+F` · `Ctrl+H` · `Enter` / `Shift+Enter` in the find bar (or `F3` · `Shift+F3`) |
 | Go to line | `Ctrl+G` |
 | Command palette | `Ctrl+Shift+/` or `F1` |
-| Compile & run / compile / stop | `F5` · `Ctrl+Shift+B` · `Shift+F5` |
+| Compile & run / compile / stop | `Ctrl+1` · `Ctrl+2` · `Ctrl+Shift+X` |
 | Output panel / sidebar / open folder | `Ctrl+J` · `Ctrl+B` · `Ctrl+Shift+O` |
 | Settings / Theme / Light↔Dark | `Ctrl+,` · `Ctrl+Alt+T` · `Ctrl+Alt+D` |
 | Markdown preview / side by side | `Ctrl+E` · `Ctrl+Shift+E` |
 | Word wrap / line numbers | `Alt+Z` · `Ctrl+Alt+L` |
 | Zoom | `Ctrl+=` · `Ctrl+-` · `Ctrl+0` · `Ctrl+wheel` |
-| Zen mode | `F11` |
-| Insert time/date | `F5` (in files that can't be run) |
+| Zen mode | `Ctrl+Alt+Z` |
+| Insert time/date | `Ctrl+Shift+;` |
 | Select next occurrence / all occurrences | `Ctrl+D` · `Ctrl+Shift+L` |
 | Move / duplicate / delete line | `Alt+↑↓` · `Shift+Alt+↓` · `Ctrl+Shift+K` |
 
@@ -50,7 +53,7 @@ Any shortcut can be changed in `settings.json` under `"keybindings"` (Settings �
 
 ## Compile & run
 
-Open or save a file with a supported extension and two buttons appear in the title bar: **Compile** (`Ctrl+Shift+B`) and **Compile & Run** (`F5`). The file is saved first. Margin uses whatever compilers are on your `PATH`:
+In a file with a supported extension, press **Compile & Run** (`Ctrl+1`) or **Compile** (`Ctrl+2`). The first run opens the output panel and adds both buttons to the title bar for later runs. The file is saved first. Margin uses whatever compilers are on your `PATH`:
 
 | Extension | Compile | Run |
 |---|---|---|
@@ -74,7 +77,7 @@ Change any of these (or add a language) in `settings.json`:
 
 Variables: `${file}` full path, `${dir}` its folder, `${name}` file name without extension, `${base}` file name, `${exe}` = `${dir}\${name}.exe`.
 
-Programs run in the output panel with their working directory set to the file's folder; type into the input line to send them text (`Ctrl+Z` ends input, `Ctrl+C` or `Shift+F5` stops them). C and C++ programs built for the panel get unbuffered `stdout`, so prompts appear before `scanf` waits. For programs that need a real console window, turn on **Settings → Run → Run programs in a separate console window**.
+Programs run in the output panel with their working directory set to the file's folder; type into the input line to send them text (`Ctrl+Z` ends input, `Ctrl+C` or `Ctrl+Shift+X` stops them). C and C++ programs built for the panel get unbuffered `stdout`, so prompts appear before `scanf` waits. For programs that need a real console window, turn on **Settings → Run → Run programs in a separate console window**.
 
 ## Where things are stored
 

@@ -66,9 +66,9 @@
       </span>
       <span class="spacer"></span>
       {#if busy}
-        <button class="icon-btn" title="Stop (Shift+F5)" aria-label="Stop" onclick={stop}><Icon name="stop" size={12} /></button>
+        <button class="icon-btn" title="Stop (Ctrl+Shift+X)" aria-label="Stop" onclick={stop}><Icon name="stop" size={12} /></button>
       {:else if run.phase !== "idle"}
-        <button class="icon-btn" title="Run again (F5)" aria-label="Run again" onclick={() => build(true)}><Icon name="play" size={13} /></button>
+        <button class="icon-btn" title="Run again (Ctrl+1)" aria-label="Run again" onclick={() => build(true)}><Icon name="play" size={13} /></button>
       {/if}
       <button class="icon-btn" title="Clear" aria-label="Clear output" onclick={clearOutput}><Icon name="clear" size={14} /></button>
       <button class="icon-btn" title="Close (Ctrl+J)" aria-label="Close output" onclick={() => (run.open = false)}><Icon name="close" size={13} /></button>
@@ -76,7 +76,7 @@
     <div class="body" bind:this={body} onscroll={onScroll}>
       <pre>{#each output.chunks as c}{#if c.kind === "out" || c.kind === "err"}<span class={c.kind}>{#each linkify(c.text) as p}{#if p.loc}<button class="loc" title="Go to {p.loc.path}:{p.loc.line}" onclick={() => openLocation(p.loc!)}>{p.text}</button>{:else}{p.text}{/if}{/each}</span>{:else}<span class={c.kind}>{c.text}</span>{/if}{/each}</pre>
       {#if !output.chunks.length}
-        <div class="empty">Press <kbd>F5</kbd> to compile and run, or <kbd>Ctrl+Shift+B</kbd> to compile.</div>
+        <div class="empty">Press <kbd>Ctrl+1</kbd> to compile and run, or <kbd>Ctrl+2</kbd> to compile.</div>
       {/if}
     </div>
     {#if run.acceptsInput}
