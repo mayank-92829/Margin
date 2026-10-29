@@ -1,6 +1,6 @@
 [package]
 name = "margin"
-version = "1.0.0"
+version = "1.1.0"
 description = "A fast, minimal, beautiful text editor"
 authors = ["Mayank"]
 edition = "2021"

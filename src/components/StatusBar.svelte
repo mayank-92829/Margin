@@ -4,6 +4,7 @@
   import { setSetting, settings, settingsFor } from "../lib/settings.svelte";
   import { activeTab, allowEditing, isMarkdown, setViewMode, status } from "../lib/tabs.svelte";
   import { largeInfo } from "../lib/largeInfo.svelte";
+  import { isRunning, run } from "../lib/run.svelte";
   import Icon from "./Icon.svelte";
 
   const tab = $derived(activeTab());
@@ -43,6 +44,12 @@
   {/if}
 
   <span class="spacer"></span>
+
+  {#if !run.open && (isRunning() || run.phase === "failed")}
+    <button class="item" class:fail={run.phase === "failed"} title="Show output (Ctrl+J)" onclick={() => (run.open = true)}>
+      {#if isRunning()}<span class="live"></span>{/if}{run.status}
+    </button>
+  {/if}
 
   {#if tab && tab.loaded}
     {#if tab.readOnly}
@@ -107,6 +114,21 @@
   }
   .spacer {
     flex: 1;
+  }
+  .fail {
+    color: var(--danger);
+  }
+  .live {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: pulse 1s ease-in-out infinite alternate;
+  }
+  @keyframes pulse {
+    to {
+      opacity: 0.3;
+    }
   }
   .modes {
     display: flex;

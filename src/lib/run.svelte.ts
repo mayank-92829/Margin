@@ -1,11 +1,10 @@
 import { listen } from "@tauri-apps/api/event";
-import { boot } from "./boot";
 import { ipc, parseError } from "./ipc";
 import { basename, dirname, extname, joinPath, resolvePath } from "./path";
 import { expand, runnerFor, templateVars } from "./runners";
-import { serializeSettings, settings, settingsMeta } from "./settings.svelte";
+import { settings } from "./settings.svelte";
 import { activeTab, openFile, saveTab, selectLine, type Tab } from "./tabs.svelte";
-import { toast } from "./ui.svelte";
+import { toast, ui } from "./ui.svelte";
 
 export { runnerFor } from "./runners";
 
@@ -42,7 +41,8 @@ function flush(): void {
   const list = output.chunks;
   for (const c of pending) {
     const last = list[list.length - 1];
-    if (last && last.kind === c.kind && (c.kind === "out" || c.kind === "err")) last.text += c.text;
+    // Merge small writes, but keep chunks small so redrawing one stays cheap.
+    if (last && last.kind === c.kind && (c.kind === "out" || c.kind === "err") && last.text.length < 4096) last.text += c.text;
     else list.push({ ...c });
     total += c.text.length;
   }
@@ -72,6 +72,8 @@ let nextId = 1;
 let currentId = 0;
 let generation = 0;
 const exits = new Map<number, (code: number | null) => void>();
+/** Runs the user stopped (taskkill reports exit code 1, which isn't a failure). */
+const stopped = new Set<number>();
 
 let listening: Promise<unknown> | null = null;
 
@@ -101,7 +103,8 @@ async function step(argv: string[], cwd: string, unbuffer: boolean): Promise<{ c
     throw e;
   }
   const code = await done;
-  return { code, ms: performance.now() - started };
+  const wasStopped = stopped.delete(id);
+  return { code: wasStopped ? null : code, ms: performance.now() - started };
 }
 
 function commandLine(argv: string[]): string {
@@ -151,6 +154,21 @@ async function prepare(tab: Tab): Promise<boolean> {
   return true;
 }
 
+function cantRun(path: string): void {
+  const ext = extname(path);
+  toast(ext ? `Margin doesn't know how to run .${ext} files yet.` : "Save the file with an extension (like .c or .py) to run it.", {
+    action: ext
+      ? {
+          label: "Set up",
+          run: () => {
+            ui.settingsSection = "run";
+            ui.settingsOpen = true;
+          },
+        }
+      : undefined,
+  });
+}
+
 export function isRunning(): boolean {
   return run.phase === "compiling" || run.phase === "running";
 }
@@ -159,6 +177,7 @@ export function isRunning(): boolean {
 export async function build(andRun: boolean): Promise<void> {
   const tab = activeTab();
   if (!tab || tab.kind !== "text") return;
+  if (tab.path && !runnerFor(tab.path)) return cantRun(tab.path);
   if (!(await prepare(tab)) || !tab.path) return;
   const path = tab.path;
   const ext = extname(path);
@@ -171,18 +190,7 @@ export async function build(andRun: boolean): Promise<void> {
       cwd = root;
     }
   }
-  if (!runner?.run) {
-    toast(`Margin doesn't know how to run .${ext || "untitled"} files. Add one in Settings → Run.`, {
-      action: {
-        label: "Open settings",
-        run: async () => {
-          if (!settingsMeta.error) await ipc.saveSettings(serializeSettings());
-          await openFile(boot.paths.settings);
-        },
-      },
-    });
-    return;
-  }
+  if (!runner?.run) return cantRun(path);
   if (isRunning()) await stop();
   const gen = ++generation;
   const vars = templateVars(path);
@@ -238,7 +246,7 @@ export async function build(andRun: boolean): Promise<void> {
     run.phase = code === 0 ? "done" : code === null ? "stopped" : "failed";
     run.status = `${exitText(code)} · ${seconds(ms)}`;
     const ends = output.chunks.at(-1)?.text.endsWith("\n") ?? true;
-    emit(`${ends ? "" : "\n"}\n${run.status}\n`, code === 0 ? "ok" : "fail");
+    emit(`${ends ? "" : "\n"}\n${run.status}\n`, code === 0 ? "ok" : code === null ? "info" : "fail");
   } catch (e) {
     if (gen !== generation) return;
     run.acceptsInput = false;
@@ -251,6 +259,7 @@ export async function build(andRun: boolean): Promise<void> {
 export async function stop(): Promise<void> {
   if (!isRunning()) return;
   const id = currentId;
+  stopped.add(id);
   run.acceptsInput = false;
   await ipc.runKill(id).catch(() => {});
 }

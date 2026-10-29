@@ -106,6 +106,7 @@
         item("Replace", "edit.replace"),
         item("Go to line…", "edit.gotoLine"),
         { separator: true },
+        ...(current?.kind === "text" && runnerFor(current.path) ? [item("Compile & run", "run.run"), item("Compile", "run.build")] : []),
         item("Sidebar", "view.sidebar", { checked: ui.sidebar.open }),
         item("Output panel", "run.output"),
         item("Word wrap", "view.wordWrap", { checked: settings.wordWrap }),

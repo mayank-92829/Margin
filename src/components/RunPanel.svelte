@@ -1,5 +1,6 @@
 <script lang="ts">
   import { tick } from "svelte";
+  import { getView } from "../lib/editor/instance";
   import { build, clearOutput, endInput, linkify, openLocation, output, run, sendInput, stop } from "../lib/run.svelte";
   import Icon from "./Icon.svelte";
 
@@ -21,12 +22,28 @@
     if (run.acceptsInput && run.open) tick().then(() => input?.focus());
   });
 
+  // When the program ends while you were typing its input, go back to the code.
+  let wasAccepting = false;
+  $effect(() => {
+    const now = run.acceptsInput;
+    if (wasAccepting && !now && document.activeElement === input) getView()?.focus();
+    wasAccepting = now;
+  });
+
+  function hide() {
+    run.open = false;
+    getView()?.focus();
+  }
+
   function onScroll() {
     if (body) stick = body.scrollHeight - body.scrollTop - body.clientHeight < 24;
   }
 
   function onKey(e: KeyboardEvent) {
-    if (e.key === "Enter") {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      hide();
+    } else if (e.key === "Enter") {
       e.preventDefault();
       sendInput(text);
       text = "";
@@ -57,7 +74,8 @@
 </script>
 
 {#if run.open}
-  <section class="panel" style="height:{run.height}px" aria-label="Output">
+  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+  <section class="panel" style="height:{run.height}px" aria-label="Output" onkeydown={(e) => e.key === "Escape" && !e.defaultPrevented && (e.preventDefault(), hide())}>
     <div class="grip" role="separator" aria-orientation="horizontal" onpointerdown={startResize}></div>
     <header>
       <span class="state {run.phase}">
@@ -71,7 +89,7 @@
         <button class="icon-btn" title="Run again (Ctrl+1)" aria-label="Run again" onclick={() => build(true)}><Icon name="play" size={13} /></button>
       {/if}
       <button class="icon-btn" title="Clear" aria-label="Clear output" onclick={clearOutput}><Icon name="clear" size={14} /></button>
-      <button class="icon-btn" title="Close (Ctrl+J)" aria-label="Close output" onclick={() => (run.open = false)}><Icon name="close" size={13} /></button>
+      <button class="icon-btn" title="Hide (Ctrl+J or Esc)" aria-label="Hide output" onclick={hide}><Icon name="close" size={13} /></button>
     </header>
     <div class="body" bind:this={body} onscroll={onScroll}>
       <pre>{#each output.chunks as c}{#if c.kind === "out" || c.kind === "err"}<span class={c.kind}>{#each linkify(c.text) as p}{#if p.loc}<button class="loc" title="Go to {p.loc.path}:{p.loc.line}" onclick={() => openLocation(p.loc!)}>{p.text}</button>{:else}{p.text}{/if}{/each}</span>{:else}<span class={c.kind}>{c.text}</span>{/if}{/each}</pre>
@@ -99,6 +117,7 @@
 <style>
   .panel {
     position: relative;
+    max-height: 65%;
     display: flex;
     flex-direction: column;
     flex-shrink: 0;

@@ -1,8 +1,8 @@
 <script lang="ts">
   import { revealItemInDir } from "@tauri-apps/plugin-opener";
-  import { untrack } from "svelte";
+  import { tick, untrack } from "svelte";
   import { basename, samePath } from "../lib/path";
-  import { activePath, collapseAll, joinPath, newFileIn, openFolderDialog, refreshTree, setFolder, toggleDir, tree } from "../lib/sidebar.svelte";
+  import { activePath, collapseAll, joinPath, newFileIn, openFolderDialog, refreshTree, reveal, setFolder, toggleDir, tree } from "../lib/sidebar.svelte";
   import { openFile, scheduleSession } from "../lib/tabs.svelte";
   import { openMenu, toast, ui } from "../lib/ui.svelte";
   import Icon from "./Icon.svelte";
@@ -35,6 +35,19 @@
   // Read the folder (and the folders left expanded last time) when it's first shown.
   $effect(() => {
     if (ui.sidebar.open && folder) untrack(() => !tree.children[folder] && refreshTree());
+  });
+
+  let treeEl: HTMLDivElement | undefined = $state();
+
+  // Follow the file being edited: open its folders and scroll it into view.
+  $effect(() => {
+    const p = current;
+    if (!p || !folder || !ui.sidebar.open) return;
+    untrack(() =>
+      reveal(p)
+        .then(tick)
+        .then(() => treeEl?.querySelector(".row.active")?.scrollIntoView({ block: "nearest" })),
+    );
   });
 
   function rowClick(r: Row) {
@@ -103,7 +116,7 @@
         <button class="icon-btn" title="Refresh" aria-label="Refresh" onclick={refreshTree}><Icon name="refresh" size={14} /></button>
         <button class="icon-btn" title="Collapse all" aria-label="Collapse all" onclick={collapseAll}><Icon name="collapse" size={14} /></button>
       </header>
-      <div class="tree" role="tree">
+      <div class="tree" role="tree" bind:this={treeEl}>
         {#each rows as r (r.path)}
           <button
             class="row"
@@ -157,6 +170,7 @@
   }
   .sidebar.open {
     width: var(--w);
+    max-width: 45vw;
     overflow: visible;
     border-right: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
   }

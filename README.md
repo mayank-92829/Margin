@@ -6,7 +6,7 @@ A fast, minimal text editor for Windows and Linux — Notepad's simplicity with 
 - **Markdown opens formatted** by default — or side‑by‑side / plain text (Settings → Markdown). Tables, task checkboxes you can click, highlighted code, math (`$…$`, `$$…$$`) and Mermaid diagrams.
 - **Stays out of the way**: it looks like Notepad until you ask for more. The run buttons and output panel appear the first time you press `Ctrl+1`; the sidebar only when you open it.
 - **Compile & run** C, C++, Rust, Go, Java, Python, JavaScript and more with one key. Output appears in a panel under the editor, programs can read input you type there, and compiler errors are clickable.
-- **Files sidebar** (`Ctrl+B`) for the folder you're working in — slides away when you don't need it.
+- **Files sidebar** (`Ctrl+B`) for the folder you're working in — follows the file you're editing and slides away when you don't need it.
 - **40 themes** (light + dark pairs, high contrast), all checked for readable contrast, follows the system light/dark mode, live preview while choosing. Import any VS Code theme, or customize one as a JSON file.
 - **Never loses work**: unsaved tabs are kept when you close the window and come back next time. Saves are atomic (a crash mid‑save can't corrupt a file).
 - Tabs, find & replace (regex, whole word, case), go to line, multi‑cursor, 100+ languages, encodings (UTF‑8/16, Windows code pages, Shift‑JIS, GBK, …), CRLF/LF, auto‑save, focus & typewriter modes, zen mode, Vim mode, spell check, text tools (sort, dedupe, case, JSON, Base64, URL…).
@@ -83,7 +83,7 @@ Change any of these, or add a language, in **Settings → Run → Languages** �
 
 Variables: `${file}` full path, `${dir}` its folder, `${name}` file name without extension, `${base}` file name, `${exe}` = `${dir}\${name}.exe`.
 
-Programs run in the output panel with their working directory set to the file's folder; type into the input line to send them text (`Ctrl+Z` ends input, `Ctrl+C` or `Ctrl+Shift+X` stops them). C and C++ programs built for the panel get unbuffered `stdout`, so prompts appear before `scanf` waits. For programs that need a real terminal, turn on **Settings → Run → Run programs in a separate window** (on Linux this opens your terminal emulator — set `$TERMINAL` to choose one).
+Programs run in the output panel with their working directory set to the file's folder; type into the input line to send them text (`Ctrl+Z` ends input, `Ctrl+C` or `Ctrl+Shift+X` stops them, `Esc` hides the panel — a running program keeps going and shows in the status bar). Click any `file:line:col` in compiler output to jump there. C and C++ programs built for the panel get unbuffered `stdout`, so prompts appear before `scanf` waits. For programs that need a real terminal, turn on **Settings → Run → Run programs in a separate window** (on Linux this opens your terminal emulator — set `$TERMINAL` to choose one).
 
 On Linux, built programs are named `${dir}/${name}` (no `.exe`) and Python runs as `python3`.
 

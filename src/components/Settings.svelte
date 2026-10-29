@@ -357,7 +357,7 @@
                     <option value="vim">Vim</option>
                   </select>
                 </div>
-                <p class="note">To change a shortcut, add it under <code>"keybindings"</code> in settings.json, e.g. <code>"view.zen": "Ctrl+Shift+Z"</code>. Command IDs are listed below.</p>
+                <p class="note">To change a shortcut, add it under <code>"keybindings"</code> in settings.json, e.g. <code>"run.run": "Ctrl+Enter"</code>. Command IDs are listed below.</p>
               {/if}
               <div class="keys">
                 {#each shortcutRows as { c, keys } (c.id)}

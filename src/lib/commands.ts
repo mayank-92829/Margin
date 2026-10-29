@@ -45,7 +45,7 @@ import {
 } from "./tabs.svelte";
 import { allThemes, currentTheme, findTheme, isDarkMode, reloadCustomThemes, themeState } from "./theme.svelte";
 import { fromVSCode, themeToFile, type ThemeDef } from "./themes";
-import { build, isRunning, runnerFor, stop, toggleOutput } from "./run.svelte";
+import { build, isRunning, stop, toggleOutput } from "./run.svelte";
 import { openFolderDialog, setFolder, toggleSidebar } from "./sidebar.svelte";
 import { ask, openPalette, toast, ui, type PaletteItem } from "./ui.svelte";
 
@@ -63,11 +63,6 @@ export interface Command {
 }
 
 // ---------------------------------------------------------------- helpers
-
-function runnable(): boolean {
-  const t = activeTab();
-  return !!t && t.kind === "text" && !!runnerFor(t.path);
-}
 
 function textTab(): Tab | undefined {
   const t = activeTab();

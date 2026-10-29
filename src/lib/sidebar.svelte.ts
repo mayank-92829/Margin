@@ -1,6 +1,6 @@
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { ipc, parseError, type DirEntry } from "./ipc";
-import { basename, dirname, isAbsolute, joinPath } from "./path";
+import { basename, dirname, isAbsolute, joinPath, samePath, sepOf } from "./path";
 
 export { joinPath };
 import { settings } from "./settings.svelte";
@@ -107,6 +107,26 @@ export function newFileIn(dir: string): void {
       }
     },
   });
+}
+
+/** Expands the folders leading to `path` so the file being edited is visible in the tree. */
+export async function reveal(path: string): Promise<void> {
+  const root = ui.sidebar.folder;
+  if (!root || !ui.sidebar.open) return;
+  const rootKey = root.replace(/[\\/]+$/, "");
+  if (!path.toLowerCase().startsWith((rootKey + sepOf(root)).toLowerCase())) return;
+  const chain: string[] = [];
+  for (let dir = dirname(path); dir.length > rootKey.length && !samePath(dir, root); dir = dirname(dir)) chain.unshift(dir);
+  // Use the tree's own spelling of each folder so keys match.
+  let parent = root;
+  for (const dir of chain) {
+    const key = joinPath(parent, basename(dir));
+    if (!ui.sidebar.expanded[key]) {
+      ui.sidebar.expanded[key] = true;
+      await loadDir(key);
+    }
+    parent = key;
+  }
 }
 
 /** Path of the active tab, for highlighting it in the tree. */

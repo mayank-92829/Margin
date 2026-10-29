@@ -1,8 +1,10 @@
 <script lang="ts">
+  import { run } from "../lib/run.svelte";
   import { dismissToast, ui } from "../lib/ui.svelte";
 </script>
 
-<div class="toasts" aria-live="polite">
+<!-- Sit above the output panel so messages never cover program output. -->
+<div class="toasts" aria-live="polite" style:bottom={run.open ? `calc(min(60vh, ${run.height}px) + 40px)` : undefined}>
   {#each ui.toasts as t (t.id)}
     <div class="toast" class:error={t.kind === "error"}>
       <span class="msg">{t.message}</span>
