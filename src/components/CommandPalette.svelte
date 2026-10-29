@@ -165,6 +165,11 @@
           }}
           onclick={() => choose(i)}
         >
+          {#if r.item.swatches}
+            <span class="swatch" style="background:{r.item.swatches[0]}">
+              {#each r.item.swatches.slice(1) as c}<i style="background:{c}"></i>{/each}
+            </span>
+          {/if}
           <span class="label">
             {#each parts(r.item.label, r.hits) as p}{#if p.hit}<b>{p.text}</b>{:else}{p.text}{/if}{/each}
           </span>
@@ -255,6 +260,21 @@
     border-radius: 50%;
     background: var(--accent);
     flex-shrink: 0;
+  }
+  .swatch {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 0 5px;
+    height: 18px;
+    border-radius: 5px;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 14%, transparent);
+    flex-shrink: 0;
+  }
+  .swatch i {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
   }
   .empty {
     padding: 14px 12px;

@@ -161,6 +161,14 @@ export function editorConfigFor(tab: Tab): EditorConfig {
   const fs = settingsFor(tab.path, isMarkdown(tab) ? "markdown" : "other");
   const indent = tab.indent ?? (fs.insertSpaces ? { spaces: true, size: fs.tabSize } : { spaces: false, size: fs.tabSize });
   return {
+    font: {
+      family: fs.fontFamily,
+      size: Math.round(fs.fontSize * settings.zoom) / 100,
+      lineHeight: fs.lineHeight,
+      letterSpacing: fs.letterSpacing,
+      ligatures: fs.ligatures,
+      textWidth: fs.textWidth || (ui.zen ? 72 : 0),
+    },
     wordWrap: fs.wordWrap,
     lineNumbers: fs.lineNumbers,
     codeFolding: fs.codeFolding,
@@ -943,6 +951,7 @@ interface SessionFile {
   tabs: SessionTab[];
   closed: string[];
   recent: string[];
+  sidebar?: { open: boolean; folder: string | null; width: number; expanded: string[] };
 }
 
 let sessionTimer: ReturnType<typeof setTimeout> | undefined;
@@ -1008,7 +1017,15 @@ async function writeSession(withBackups: boolean): Promise<void> {
       selection: sel ? { anchor: sel.anchor, head: sel.head } : (d.pendingSelection ?? null),
     });
   }
-  const file: SessionFile = { version: 1, activeId: tabsState.activeId, tabs, closed: closed.slice(-30), recent: tabsState.recent };
+  const sb = ui.sidebar;
+  const file: SessionFile = {
+    version: 1,
+    activeId: tabsState.activeId,
+    tabs,
+    closed: closed.slice(-30),
+    recent: tabsState.recent,
+    sidebar: { open: sb.open, folder: sb.folder, width: sb.width, expanded: Object.keys(sb.expanded) },
+  };
   await ipc.saveSession(JSON.stringify(file));
   await ipc.pruneBackups(tabs.filter((t) => t.hasBackup).map((t) => t.id));
 }
@@ -1022,6 +1039,13 @@ export async function restoreSession(text: string | null): Promise<void> {
   }
   if (!file || file.version !== 1 || !Array.isArray(file.tabs)) return;
   tabsState.recent = Array.isArray(file.recent) ? file.recent.filter((p) => typeof p === "string").slice(0, MAX_RECENT) : [];
+  const sb = file.sidebar;
+  if (sb && typeof sb === "object") {
+    ui.sidebar.open = !!sb.open;
+    ui.sidebar.folder = typeof sb.folder === "string" ? sb.folder : null;
+    ui.sidebar.width = typeof sb.width === "number" ? Math.min(600, Math.max(160, sb.width)) : 240;
+    ui.sidebar.expanded = Object.fromEntries((Array.isArray(sb.expanded) ? sb.expanded : []).filter((p) => typeof p === "string").map((p) => [p, true as const]));
+  }
   if (Array.isArray(file.closed)) closed.push(...file.closed.filter((p) => typeof p === "string"));
   for (const st of file.tabs) {
     if (!st || typeof st.id !== "string") continue;
@@ -1102,12 +1126,13 @@ export function toggleTaskAt(line: number): void {
   view.dispatch({ changes: { from: pos, to: pos + 1, insert: m[2] === " " ? "x" : " " }, userEvent: "input.toggle" });
 }
 
-export function selectLine(line: number): void {
+export function selectLine(line: number, col = 1): void {
   const view = getView();
   if (!view) return;
   const n = Math.max(1, Math.min(view.state.doc.lines, line));
   const l = view.state.doc.line(n);
-  view.dispatch({ selection: EditorSelection.cursor(l.from), effects: EditorView.scrollIntoView(l.from, { y: "center" }) });
+  const pos = l.from + Math.max(0, Math.min(l.length, col - 1));
+  view.dispatch({ selection: EditorSelection.cursor(pos), effects: EditorView.scrollIntoView(pos, { y: "center" }) });
   view.focus();
 }
 

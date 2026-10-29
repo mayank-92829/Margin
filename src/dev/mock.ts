@@ -1,6 +1,7 @@
 // Browser-only test harness: an in-memory stand-in for the Rust backend.
 // Loaded by dev.html; never part of the real app.
 
+import { emit } from "@tauri-apps/api/event";
 import { mockConvertFileSrc, mockIPC, mockWindows } from "@tauri-apps/api/mocks";
 
 const DIR = "C:\\Users\\demo\\Documents";
@@ -65,6 +66,17 @@ export async function load(path) {
 }
 `;
 
+const HELLO_C = `#include <stdio.h>
+
+int main(void) {
+    char name[64];
+    printf("What's your name? ");
+    scanf("%63s", name);
+    printf("Hello, %s!\\n", name);
+    return 0
+}
+`;
+
 interface MockFile {
   content: string;
   mtime: number;
@@ -75,12 +87,15 @@ const files = new Map<string, MockFile>([
   [`${DIR}\\README.md`, { content: README, mtime: 1 }],
   [`${DIR}\\notes.txt`, { content: NOTES, mtime: 1 }],
   [`${DIR}\\app.js`, { content: APP_JS, mtime: 1 }],
+  [`${DIR}\\code\\hello.c`, { content: HELLO_C, mtime: 1 }],
+  [`${DIR}\\code\\notes\\todo.txt`, { content: "- learn pointers\r\n", mtime: 1 }],
   [`${DIR}\\server.log`, { content: "", mtime: 1, virtualLines: 2_000_000 }],
 ]);
 
 const logLine = (i: number) => `2026-10-29T12:${String(Math.floor(i / 60) % 60).padStart(2, "0")}:${String(i % 60).padStart(2, "0")} INFO request id=${i} path=/api/items/${i % 977} status=${i % 1013 === 0 ? 500 : 200}`;
 
 const backups = new Map<string, string>();
+const running = new Map<number, (text: string) => void>();
 const store = { settings: null as string | null, session: null as string | null, themes: new Map<string, string>() };
 const pending = [`${DIR}\\README.md`, `${DIR}\\notes.txt`];
 const log: { cmd: string; args: unknown }[] = [];
@@ -160,6 +175,47 @@ const handlers: Record<string, (a: Args) => unknown> = {
     return null;
   },
   large_close: () => null,
+  list_dir: ({ path }) => {
+    const prefix = path.replace(/\\$/, "") + "\\";
+    const seen = new Map<string, boolean>();
+    for (const k of files.keys()) {
+      if (!key(k).startsWith(key(prefix))) continue;
+      const rest = k.slice(prefix.length).split("\\");
+      seen.set(rest[0], rest.length > 1 || seen.get(rest[0]) === true);
+    }
+    if (!seen.size && !find(path)) throw `NOTFOUND:"${path}" doesn't exist.`;
+    return [...seen].map(([name, dir]) => ({ name, dir })).sort((a, b) => Number(b.dir) - Number(a.dir) || a.name.localeCompare(b.name));
+  },
+  is_dir: ({ path }) => !find(path) && [...files.keys()].some((k) => key(k).startsWith(key(path.replace(/\\$/, "") + "\\"))),
+  run_start: ({ id, argv }) => {
+    const out = (text: string, err = false, ms = 0) => setTimeout(() => emit("run-output", { id, err, text }), ms);
+    const exit = (code: number, ms: number) => setTimeout(() => emit("run-exit", { id, code, ms }), ms);
+    const program = String(argv[0]).toLowerCase();
+    if (program === "gcc" || program === "g++") {
+      const src = find(argv[1])?.file.content ?? "";
+      if (/return 0\s*\n\s*}/.test(src)) {
+        const f = argv[1];
+        out(`${f}: In function 'main':\n${f}:8:13: error: expected ';' before '}' token\n    8 |     return 0\n      |             ^\n      |             ;\n`, true, 300);
+        exit(1, 320);
+      } else exit(0, 400);
+    } else if (program.endsWith(".exe")) {
+      running.set(id, (text) => {
+        out(`Hello, ${text.trim()}!\n`);
+        exit(0, 10);
+      });
+      out("What's your name? ", false, 50);
+    } else {
+      out(`'${argv[0]}' isn't available in the browser harness.\n`, true);
+      exit(1, 10);
+    }
+    return null;
+  },
+  run_input: ({ id, text }) => void running.get(id)?.(text),
+  run_kill: ({ id }) => {
+    running.delete(id);
+    setTimeout(() => emit("run-exit", { id, code: null, ms: 1 }), 5);
+  },
+  run_in_console: () => null,
   "plugin:dialog|open": () => `${DIR}\\app.js`,
   "plugin:dialog|save": ({ options }) => options?.defaultPath ?? `${DIR}\\Untitled.txt`,
   "plugin:window|is_maximized": () => false,

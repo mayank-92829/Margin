@@ -1,5 +1,6 @@
 mod files;
 mod large;
+mod run;
 mod storage;
 
 use std::path::{Path, PathBuf};
@@ -106,6 +107,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .manage(PendingFiles::default())
         .manage(large::LargeFiles::default())
+        .manage(run::Runs::default())
         .setup(|app| {
             let cwd = std::env::current_dir().unwrap_or_default();
             let args: Vec<String> = std::env::args_os().map(|a| a.to_string_lossy().into_owned()).collect();
@@ -128,6 +130,8 @@ pub fn run() {
             files::read_text_file,
             files::write_text_file,
             files::stat_files,
+            files::list_dir,
+            files::is_dir,
             storage::save_settings,
             storage::save_session,
             storage::write_backup,
@@ -141,6 +145,10 @@ pub fn run() {
             large::large_lines,
             large::large_search,
             large::large_close,
+            run::run_start,
+            run::run_input,
+            run::run_kill,
+            run::run_in_console,
         ])
         .build(tauri::generate_context!())
         .expect("error while starting Margin");

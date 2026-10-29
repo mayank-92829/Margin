@@ -45,6 +45,8 @@ import {
 } from "./tabs.svelte";
 import { allThemes, currentTheme, findTheme, isDarkMode, reloadCustomThemes, themeState } from "./theme.svelte";
 import { fromVSCode, themeToFile, type ThemeDef } from "./themes";
+import { build, isRunning, runnerFor, stop, toggleOutput } from "./run.svelte";
+import { openFolderDialog, setFolder, toggleSidebar } from "./sidebar.svelte";
 import { ask, openPalette, toast, ui, type PaletteItem } from "./ui.svelte";
 
 export interface Command {
@@ -55,10 +57,17 @@ export interface Command {
   keys?: string[];
   /** Shortcut shown for reference only (handled inside the editor). */
   hint?: string;
+  /** For shared shortcuts: the command only takes the key when this is true. */
+  when?: () => boolean;
   run: () => unknown;
 }
 
 // ---------------------------------------------------------------- helpers
+
+function runnable(): boolean {
+  const t = activeTab();
+  return !!t && t.kind === "text" && !!runnerFor(t.path);
+}
 
 function textTab(): Tab | undefined {
   const t = activeTab();
@@ -266,7 +275,13 @@ async function importVSCodeTheme(): Promise<void> {
 
 export function pickTheme(): void {
   const current = currentTheme().id;
-  const items: PaletteItem[] = allThemes().map((t) => ({ id: t.id, label: t.name, detail: t.file ? "Custom" : t.dark ? "Dark" : "Light", current: t.id === current }));
+  const items: PaletteItem[] = allThemes().map((t) => ({
+    id: t.id,
+    label: t.name,
+    detail: t.file ? "Custom" : t.dark ? "Dark" : "Light",
+    current: t.id === current,
+    swatches: [t.colors.bg, t.colors.keyword, t.colors.string, t.colors.function, t.colors.accent],
+  }));
   openPalette({
     placeholder: "Choose a theme (↑↓ to preview)",
     items,
@@ -407,6 +422,8 @@ export const commands: Command[] = [
   { id: "file.new", title: "New Tab", category: "File", keys: ["Ctrl+N", "Ctrl+T"], run: () => newTab() },
   { id: "file.open", title: "Open…", category: "File", keys: ["Ctrl+O"], run: openWithDialog },
   { id: "file.openRecent", title: "Open Recent…", category: "File", keys: ["Ctrl+R"], run: pickRecent },
+  { id: "file.openFolder", title: "Open Folder…", category: "File", keys: ["Ctrl+Shift+O"], run: openFolderDialog },
+  { id: "file.closeFolder", title: "Close Folder", category: "File", run: () => setFolder(null) },
   { id: "file.save", title: "Save", category: "File", keys: ["Ctrl+S"], run: () => activeTab() && saveTab(activeTab()!) },
   { id: "file.saveAs", title: "Save As…", category: "File", keys: ["Ctrl+Shift+S"], run: () => activeTab() && saveTab(activeTab()!, true) },
   { id: "file.saveAll", title: "Save All", category: "File", keys: ["Ctrl+Alt+S"], run: saveAll },
@@ -439,7 +456,7 @@ export const commands: Command[] = [
   { id: "edit.findNext", title: "Find Next", category: "Edit", keys: ["F3"], run: () => findStep(1) },
   { id: "edit.findPrev", title: "Find Previous", category: "Edit", keys: ["Shift+F3"], run: () => findStep(-1) },
   { id: "edit.gotoLine", title: "Go to Line…", category: "Edit", keys: ["Ctrl+G"], run: gotoLine },
-  { id: "edit.dateTime", title: "Insert Time/Date", category: "Edit", keys: ["F5"], run: edit(tx.insertDateTime) },
+  { id: "edit.dateTime", title: "Insert Time/Date", category: "Edit", keys: ["F5"], when: () => !runnable(), run: edit(tx.insertDateTime) },
   { id: "edit.selectAllMatches", title: "Select All Occurrences", category: "Edit", hint: "Ctrl+Shift+L", run: edit(selectSelectionMatches) },
   { id: "edit.toggleComment", title: "Toggle Comment", category: "Edit", hint: "Ctrl+/", run: edit(toggleComment) },
   { id: "edit.duplicateLine", title: "Duplicate Line", category: "Edit", hint: "Shift+Alt+↓", run: edit(copyLineDown) },
@@ -489,7 +506,8 @@ export const commands: Command[] = [
   { id: "text.urlDecode", title: "URL Decode", category: "Text", run: edit(tx.urlDecode) },
 
   // View
-  { id: "view.palette", title: "Command Palette", category: "View", keys: ["Ctrl+Shift+P", "F1"], run: openCommandPalette },
+  { id: "view.palette", title: "Command Palette", category: "View", keys: ["Ctrl+Shift+/", "F1"], run: openCommandPalette },
+  { id: "view.sidebar", title: "Toggle Sidebar", category: "View", keys: ["Ctrl+B"], run: toggleSidebar },
   { id: "view.settings", title: "Settings", category: "View", keys: ["Ctrl+,"], run: () => (ui.settingsOpen = true) },
   { id: "view.theme", title: "Change Theme…", category: "View", keys: ["Ctrl+Alt+T"], run: pickTheme },
   { id: "view.toggleDark", title: "Toggle Light / Dark", category: "View", keys: ["Ctrl+Alt+D"], run: toggleDarkLight },
@@ -523,6 +541,12 @@ export const commands: Command[] = [
   { id: "view.zoomIn", title: "Zoom In", category: "View", keys: ["Ctrl+=", "Ctrl+Shift+=", "Ctrl+NumpadAdd"], run: () => zoom(1) },
   { id: "view.zoomOut", title: "Zoom Out", category: "View", keys: ["Ctrl+-", "Ctrl+NumpadSubtract"], run: () => zoom(-1) },
   { id: "view.zoomReset", title: "Reset Zoom", category: "View", keys: ["Ctrl+0", "Ctrl+Numpad0"], run: () => zoom(0) },
+
+  // Run
+  { id: "run.run", title: "Compile & Run", category: "Run", keys: ["F5"], when: runnable, run: () => build(true) },
+  { id: "run.build", title: "Compile", category: "Run", keys: ["Ctrl+Shift+B"], run: () => build(false) },
+  { id: "run.stop", title: "Stop Program", category: "Run", keys: ["Shift+F5"], when: isRunning, run: stop },
+  { id: "run.output", title: "Toggle Output Panel", category: "Run", keys: ["Ctrl+J", "Ctrl+`"], run: toggleOutput },
 
   // Tabs
   { id: "tab.next", title: "Next Tab", category: "Tabs", keys: ["Ctrl+Tab", "Ctrl+PageDown"], run: () => cycleTab(1) },
@@ -593,23 +617,28 @@ export function normalizeCombo(s: string): string {
   return out.join("+");
 }
 
-let keymapCache: { sig: string; map: Map<string, string> } | null = null;
+let keymapCache: { sig: string; map: Map<string, Command[]> } | null = null;
 
-function keyMap(): Map<string, string> {
+function keyMap(): Map<string, Command[]> {
   const sig = JSON.stringify(settings.keybindings);
   if (keymapCache?.sig === sig) return keymapCache.map;
-  const map = new Map<string, string>();
+  const map = new Map<string, Command[]>();
   for (const c of commands) {
     const custom = settings.keybindings[c.id];
     const keys = custom !== undefined ? (custom ? [custom] : []) : (c.keys ?? []);
-    for (const k of keys) map.set(normalizeCombo(k), c.id);
+    for (const k of keys) {
+      const combo = normalizeCombo(k);
+      // A custom binding wins over a built-in one for the same key.
+      if (custom !== undefined) map.set(combo, [c, ...(map.get(combo) ?? [])]);
+      else map.set(combo, [...(map.get(combo) ?? []), c]);
+    }
   }
   keymapCache = { sig, map };
   return map;
 }
 
 export function commandForCombo(combo: string): string | undefined {
-  return keyMap().get(combo);
+  return keyMap().get(combo)?.find((c) => !c.when || c.when())?.id;
 }
 
 export function shortcutLabel(c: Command): string | undefined {

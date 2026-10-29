@@ -4,11 +4,16 @@
   import { tick } from "svelte";
   import { runCommand, shortcutLabel, commands } from "../lib/commands";
   import { settings } from "../lib/settings.svelte";
-  import { activate, closeTab, closeTabs, moveTab, newTab, reopenClosed, tabsState, type Tab } from "../lib/tabs.svelte";
+  import { build, isRunning, runnerFor, stop } from "../lib/run.svelte";
+  import { toggleSidebar } from "../lib/sidebar.svelte";
+  import { activate, activeTab, closeTab, closeTabs, moveTab, newTab, reopenClosed, tabsState, type Tab } from "../lib/tabs.svelte";
   import { openMenu, toast, ui, type MenuItem } from "../lib/ui.svelte";
   import Icon from "./Icon.svelte";
 
   const win = getCurrentWindow();
+  const current = $derived(activeTab());
+  const runner = $derived(current?.kind === "text" ? runnerFor(current.path) : null);
+  const running = $derived(isRunning());
   let strip: HTMLDivElement | undefined = $state();
   let drag: { id: string; startX: number; moved: boolean; index: number } | null = null;
 
@@ -93,10 +98,14 @@
         item("Save as…", "file.saveAs"),
         item("Save all", "file.saveAll"),
         { separator: true },
+        item("Open folder…", "file.openFolder"),
+        { separator: true },
         item("Find", "edit.find"),
         item("Replace", "edit.replace"),
         item("Go to line…", "edit.gotoLine"),
         { separator: true },
+        item("Sidebar", "view.sidebar", { checked: ui.sidebar.open }),
+        item("Output panel", "run.output"),
         item("Word wrap", "view.wordWrap", { checked: settings.wordWrap }),
         item("Zen mode", "view.zen"),
         item("Always on top", "view.alwaysOnTop", { checked: ui.alwaysOnTop }),
@@ -122,6 +131,9 @@
 </script>
 
 <header class="titlebar" data-tauri-drag-region>
+  <button class="icon-btn side-btn" class:on={ui.sidebar.open} aria-label="Toggle sidebar" title="Sidebar ({hint('view.sidebar')})" onclick={toggleSidebar}>
+    <Icon name="sidebar" />
+  </button>
   <div class="tabs" bind:this={strip} onwheel={wheel} role="tablist">
     {#each tabsState.list as tab, i (tab.id)}
       <div
@@ -158,6 +170,22 @@
     <button class="new" aria-label="New tab" title="New tab ({hint('file.new')})" onclick={() => newTab()}><Icon name="plus" size={14} /></button>
     <div class="drag" data-tauri-drag-region></div>
   </div>
+  {#if runner}
+    <div class="run" role="group" aria-label="Build and run">
+      {#if runner.compile}
+        <button class="icon-btn" aria-label="Compile" title="Compile ({hint('run.build')})" disabled={running} onclick={() => build(false)}>
+          <Icon name="build" />
+        </button>
+      {/if}
+      {#if running}
+        <button class="icon-btn stop" aria-label="Stop" title="Stop ({hint('run.stop')})" onclick={stop}><Icon name="stop" size={13} /></button>
+      {:else}
+        <button class="icon-btn play" aria-label={runner.compile ? "Compile and run" : "Run"} title="{runner.compile ? 'Compile & Run' : 'Run'} ({hint('run.run')})" onclick={() => build(true)}>
+          <Icon name="play" size={14} />
+        </button>
+      {/if}
+    </div>
+  {/if}
   <button class="icon-btn menu-btn" aria-label="Menu" title="Menu" onclick={mainMenu}><Icon name="more" /></button>
   <div class="controls">
     <button class="wc" aria-label="Minimize" onclick={() => win.minimize()}>&#xE921;</button>
@@ -289,6 +317,33 @@
   .menu-btn {
     align-self: center;
     margin-right: 4px;
+  }
+  .side-btn {
+    align-self: center;
+    margin-left: 6px;
+    flex-shrink: 0;
+  }
+  .side-btn.on {
+    background: none;
+  }
+  .run {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-right: 6px;
+    padding-right: 6px;
+    border-right: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+    align-self: center;
+  }
+  .run .icon-btn:disabled {
+    opacity: 0.4;
+    pointer-events: none;
+  }
+  .run .play {
+    color: var(--tk-string);
+  }
+  .run .stop {
+    color: var(--danger);
   }
   .controls {
     display: flex;

@@ -54,6 +54,11 @@ export interface LargeSearchArgs {
   backward: boolean;
 }
 
+export interface DirEntry {
+  name: string;
+  dir: boolean;
+}
+
 export const ipc = {
   readTextFile: (path: string, maxBytes: number, encoding?: string) =>
     invoke<OpenedFile>("read_text_file", { path, maxBytes, encoding: encoding ?? null }),
@@ -75,6 +80,12 @@ export const ipc = {
   largeLines: (id: number, start: number, count: number) => invoke<string[]>("large_lines", { id, start, count }),
   largeSearch: (args: LargeSearchArgs) => invoke<LargeMatch | null>("large_search", { ...args }),
   largeClose: (id: number) => invoke<void>("large_close", { id }),
+  listDir: (path: string) => invoke<DirEntry[]>("list_dir", { path }),
+  isDir: (path: string) => invoke<boolean>("is_dir", { path }),
+  runStart: (id: number, argv: string[], cwd: string, unbuffer: boolean) => invoke<void>("run_start", { id, argv, cwd, unbuffer }),
+  runInput: (id: number, text: string, close = false) => invoke<void>("run_input", { id, text, close }),
+  runKill: (id: number) => invoke<void>("run_kill", { id }),
+  runInConsole: (argv: string[], cwd: string, title: string) => invoke<void>("run_in_console", { argv, cwd, title }),
 };
 
 /** Rust errors look like "CODE:message"; plain messages have no code. */

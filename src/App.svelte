@@ -9,6 +9,7 @@
   import type FindBar from "./components/FindBar.svelte";
   import Menu from "./components/Menu.svelte";
   import Settings from "./components/Settings.svelte";
+  import Sidebar from "./components/Sidebar.svelte";
   import StatusBar from "./components/StatusBar.svelte";
   import TitleBar from "./components/TitleBar.svelte";
   import Toasts from "./components/Toasts.svelte";
@@ -23,12 +24,12 @@
     checkExternalChanges,
     isMarkdown,
     newTab,
-    openPaths,
     prepareExit,
     restoreSession,
     syncConfig,
     tabsState,
   } from "./lib/tabs.svelte";
+  import { openAny, refreshTree } from "./lib/sidebar.svelte";
   import { anyOverlayOpen, ask, toast, ui } from "./lib/ui.svelte";
 
   const win = getCurrentWindow();
@@ -42,11 +43,8 @@
     const family = fs.fontFamily === "JetBrains Mono" ? "JetBrains Mono Variable" : fs.fontFamily;
     root.setProperty("--editor-font", `"${family.replace(/"/g, "")}", var(--mono-font)`);
     root.setProperty("--editor-size", `${(fs.fontSize * settings.zoom) / 100}px`);
-    root.setProperty("--editor-lh", String(fs.lineHeight));
     root.setProperty("--editor-ls", `${fs.letterSpacing}px`);
     root.setProperty("--editor-lig", fs.ligatures ? "normal" : "none");
-    root.setProperty("--editor-features", fs.ligatures ? "normal" : '"calt" 0, "liga" 0');
-    root.setProperty("--text-width", fs.textWidth ? `calc(${fs.textWidth}ch + 56px)` : ui.zen ? "calc(72ch + 56px)" : "none");
     const pf = { sans: "var(--ui-font)", serif: 'Georgia, "Sitka Text", Cambria, serif', mono: "var(--mono-font)" }[settings.previewFont];
     root.setProperty("--preview-font", pf);
     root.setProperty("--preview-size", `${(settings.previewFontSize * settings.zoom) / 100}px`);
@@ -54,13 +52,12 @@
     const d = document.documentElement.dataset;
     d.cursor = settings.cursorStyle;
     d.reduceMotion = String(settings.reduceMotion);
-    requestAnimationFrame(() => getView()?.requestMeasure());
   });
 
   // ---- editor behaviour settings → reconfigure the editor
   $effect(() => {
     for (const k of PER_FILE_KEYS) void settings[k];
-    void [JSON.stringify(settings.overrides), settings.keymap, settings.cursorBlink, tab?.id, tab?.readOnly];
+    void [JSON.stringify(settings.overrides), settings.keymap, settings.cursorBlink, settings.zoom, ui.zen, tab?.id, tab?.readOnly];
     untrack(() => syncConfig());
   });
 
@@ -89,6 +86,7 @@
     "F5", "Ctrl+R", "Ctrl+Shift+R", "F7", "Ctrl+U", "Ctrl+J", "Ctrl+Shift+J", "Ctrl+Shift+I", "Ctrl+Shift+C",
     "F12", "Ctrl+Shift+Delete", "Alt+ArrowLeft", "Alt+ArrowRight", "BrowserBack", "BrowserForward", "Ctrl+D", "Ctrl+Shift+O",
     "Ctrl+Shift+B", "Ctrl+H", "Ctrl+P", "Ctrl+S", "Ctrl+F", "Ctrl+G", "Ctrl+Shift+A", "F3", "Shift+F3",
+    "Shift+F5", "Ctrl+F5", "Ctrl+B",
   ]);
 
   function onKeyCapture(e: KeyboardEvent) {
@@ -160,7 +158,7 @@
     window.addEventListener("error", (e) => report(e.message));
     window.addEventListener("unhandledrejection", (e) => report(parseError(e.reason).message));
 
-    unlisten.push(listen("open-files", async () => openPaths(await ipc.takePendingFiles())));
+    unlisten.push(listen("open-files", async () => openAny(await ipc.takePendingFiles())));
     unlisten.push(
       getCurrentWebview().onDragDropEvent((e) => {
         const p = e.payload;
@@ -168,14 +166,16 @@
         else if (p.type === "leave") ui.dropping = false;
         else if (p.type === "drop") {
           ui.dropping = false;
-          if (p.paths.length) openPaths(p.paths);
+          if (p.paths.length) openAny(p.paths);
         }
       }),
     );
     unlisten.push(
       win.onFocusChanged(({ payload: focused }) => {
-        if (focused) checkExternalChanges();
-        else autoSaveOnBlur();
+        if (focused) {
+          checkExternalChanges();
+          refreshTree();
+        } else autoSaveOnBlur();
       }),
     );
     unlisten.push(win.onResized(async () => (ui.maximized = await win.isMaximized())));
@@ -213,7 +213,7 @@
         try {
           await restoreSession(boot.sessionText);
           const pending = await ipc.takePendingFiles();
-          if (pending.length) await openPaths(pending);
+          if (pending.length) await openAny(pending);
         } catch (e) {
           console.error("Startup failed", e);
         }
@@ -257,7 +257,12 @@
   {#if !ui.zen}
     <TitleBar />
   {/if}
-  <EditorArea bind:findBar />
+  <div class="main">
+    {#if !ui.zen}
+      <Sidebar />
+    {/if}
+    <EditorArea bind:findBar />
+  </div>
   {#if settings.showStatusBar && !ui.zen}
     <StatusBar />
   {/if}
@@ -278,6 +283,11 @@
     display: flex;
     flex-direction: column;
     height: 100%;
+  }
+  .main {
+    flex: 1;
+    min-height: 0;
+    display: flex;
   }
   .drop {
     position: fixed;

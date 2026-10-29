@@ -107,6 +107,18 @@
         { kind: "toggle", key: "showWordCount", label: "Word count in status bar" },
       ],
     },
+    {
+      id: "run",
+      title: "Run",
+      rows: [
+        {
+          kind: "toggle",
+          key: "runInTerminal",
+          label: "Run programs in a separate console window",
+          desc: 'For programs that need a real console (colors, clearing the screen). Compiler messages still show in Margin. The command for each language can be changed under "runners" in settings.json.',
+        },
+      ],
+    },
   ];
 
   const navItems = [
@@ -115,6 +127,7 @@
     { id: "markdown", title: "Markdown" },
     { id: "files", title: "Files" },
     { id: "writing", title: "Writing" },
+    { id: "run", title: "Run" },
     { id: "keyboard", title: "Keyboard" },
     { id: "about", title: "About" },
   ];

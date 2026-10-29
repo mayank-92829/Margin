@@ -5,6 +5,8 @@ export interface PaletteItem {
   hint?: string;
   /** Marks the item that is current (e.g. the active theme). */
   current?: boolean;
+  /** Small color chips drawn before the label (theme picker). */
+  swatches?: string[];
 }
 
 export interface PaletteConfig {
@@ -74,6 +76,13 @@ export const ui = $state({
   maximized: false,
   dropping: false,
   splitRatio: 0.5,
+  sidebar: {
+    open: false,
+    folder: null as string | null,
+    width: 240,
+    /** Folders expanded in the tree, by full path. */
+    expanded: {} as Record<string, true>,
+  },
 });
 
 let toastId = 0;

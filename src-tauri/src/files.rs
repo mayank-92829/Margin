@@ -309,6 +309,35 @@ pub fn stat_files(paths: Vec<String>) -> Vec<Option<FileStat>> {
         .collect()
 }
 
+#[derive(Serialize)]
+pub struct DirEntry {
+    pub name: String,
+    pub dir: bool,
+}
+
+/// Lists a folder for the sidebar: folders first, then files, each sorted by name.
+#[tauri::command(async)]
+pub fn list_dir(path: String) -> Result<Vec<DirEntry>, String> {
+    let p = Path::new(&path);
+    let entries = fs::read_dir(p).map_err(|e| io_message(&e, p))?;
+    let mut out: Vec<DirEntry> = entries
+        .filter_map(|e| e.ok())
+        .map(|e| {
+            let name = e.file_name().to_string_lossy().into_owned();
+            // Follow links so a linked folder still opens like a folder.
+            let dir = fs::metadata(e.path()).map(|m| m.is_dir()).unwrap_or(false);
+            DirEntry { name, dir }
+        })
+        .collect();
+    out.sort_by(|a, b| b.dir.cmp(&a.dir).then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase())));
+    Ok(out)
+}
+
+#[tauri::command]
+pub fn is_dir(path: String) -> bool {
+    fs::metadata(path).map(|m| m.is_dir()).unwrap_or(false)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

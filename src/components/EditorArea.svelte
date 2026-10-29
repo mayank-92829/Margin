@@ -20,6 +20,7 @@
   import Icon from "./Icon.svelte";
   import LargeViewer from "./LargeViewer.svelte";
   import Preview from "./Preview.svelte";
+  import RunPanel from "./RunPanel.svelte";
 
   let { findBar = $bindable() }: { findBar?: FindBar } = $props();
 
@@ -112,11 +113,13 @@
     {/if}
     <FindBar bind:this={findBar} />
   </div>
+  <RunPanel />
 </div>
 
 <style>
   .area {
     flex: 1;
+    min-width: 0;
     min-height: 0;
     display: flex;
     flex-direction: column;

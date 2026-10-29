@@ -61,9 +61,13 @@ export interface Settings {
   focusMode: boolean;
   typewriterMode: boolean;
   showWordCount: boolean;
+  // Run
+  runInTerminal: boolean;
   // Advanced (settings.json only)
   overrides: Record<string, Partial<Settings>>;
   keybindings: Record<string, string>;
+  /** Per file extension: { "compile": "...", "run": "..." } command templates. */
+  runners: Record<string, { compile?: string; run?: string }>;
 }
 
 export const DEFAULTS: Settings = {
@@ -123,10 +127,13 @@ export const DEFAULTS: Settings = {
   typewriterMode: false,
   showWordCount: true,
 
+  runInTerminal: false,
+
   overrides: {
     md: { wordWrap: true },
   },
   keybindings: {},
+  runners: {},
 };
 
 const ENUMS: Partial<Record<keyof Settings, readonly string[]>> = {
@@ -189,7 +196,7 @@ function clampValue(key: keyof Settings, value: unknown): unknown {
 function sanitizePartial(obj: Record<string, unknown>): Partial<Settings> {
   const out: Record<string, unknown> = {};
   for (const key of Object.keys(obj)) {
-    if (key in DEFAULTS && key !== "overrides" && key !== "keybindings" && validValue(key as keyof Settings, obj[key])) {
+    if (key in DEFAULTS && key !== "overrides" && key !== "keybindings" && key !== "runners" && validValue(key as keyof Settings, obj[key])) {
       out[key] = clampValue(key as keyof Settings, obj[key]);
     }
   }
@@ -222,6 +229,17 @@ export function loadSettingsText(text: string | null): boolean {
     next.keybindings = {};
     for (const [id, key] of Object.entries(o.keybindings as Record<string, unknown>)) {
       if (typeof key === "string") next.keybindings[id] = key;
+    }
+  }
+  if (o.runners && typeof o.runners === "object" && !Array.isArray(o.runners)) {
+    next.runners = {};
+    for (const [ext, val] of Object.entries(o.runners as Record<string, unknown>)) {
+      if (!val || typeof val !== "object") continue;
+      const v = val as Record<string, unknown>;
+      const r: { compile?: string; run?: string } = {};
+      if (typeof v.compile === "string") r.compile = v.compile;
+      if (typeof v.run === "string") r.run = v.run;
+      next.runners[ext.replace(/^\./, "").toLowerCase()] = r;
     }
   }
   Object.assign(settings, next);

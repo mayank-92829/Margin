@@ -4,10 +4,12 @@ A fast, minimal text editor for Windows — Notepad's simplicity with a real edi
 
 - **Opens instantly**, even multi‑gigabyte files (they open in a read‑only viewer with search; files up to 512 MB can be switched to full editing).
 - **Markdown opens formatted** by default — or side‑by‑side / plain text (Settings → Markdown). Tables, task checkboxes you can click, highlighted code, math (`$…$`, `$$…$$`) and Mermaid diagrams.
-- **40 themes** (light + dark pairs, high contrast), follows Windows light/dark, live preview while choosing. Import any VS Code theme, or customize one as a JSON file.
+- **Compile & run** C, C++, Rust, Go, Java, Python, JavaScript and more with one key. Output appears in a panel under the editor, programs can read input you type there, and compiler errors are clickable.
+- **Files sidebar** (`Ctrl+B`) for the folder you're working in — slides away when you don't need it.
+- **40 themes** (light + dark pairs, high contrast), all checked for readable contrast, follows Windows light/dark, live preview while choosing. Import any VS Code theme, or customize one as a JSON file.
 - **Never loses work**: unsaved tabs are kept when you close the window and come back next time. Saves are atomic (a crash mid‑save can't corrupt a file).
 - Tabs, find & replace (regex, whole word, case), go to line, multi‑cursor, 100+ languages, encodings (UTF‑8/16, Windows code pages, Shift‑JIS, GBK, …), CRLF/LF, auto‑save, focus & typewriter modes, zen mode, Vim mode, spell check, text tools (sort, dedupe, case, JSON, Base64, URL…).
-- Everything else lives in the **command palette** (`Ctrl+Shift+P`) so the window stays clean.
+- Everything else lives in the **command palette** (`Ctrl+Shift+/`) so the window stays clean.
 
 ## Run & build
 
@@ -32,17 +34,47 @@ To work on the UI without the Rust side, run `npm run dev` and open `http://loca
 | Next / previous tab, tab 1–9 | `Ctrl+Tab` · `Ctrl+Shift+Tab` · `Ctrl+1…9` |
 | Find / Replace / next / previous | `Ctrl+F` · `Ctrl+H` · `F3` · `Shift+F3` |
 | Go to line | `Ctrl+G` |
-| Command palette | `Ctrl+Shift+P` or `F1` |
+| Command palette | `Ctrl+Shift+/` or `F1` |
+| Compile & run / compile / stop | `F5` · `Ctrl+Shift+B` · `Shift+F5` |
+| Output panel / sidebar / open folder | `Ctrl+J` · `Ctrl+B` · `Ctrl+Shift+O` |
 | Settings / Theme / Light↔Dark | `Ctrl+,` · `Ctrl+Alt+T` · `Ctrl+Alt+D` |
 | Markdown preview / side by side | `Ctrl+E` · `Ctrl+Shift+E` |
 | Word wrap / line numbers | `Alt+Z` · `Ctrl+Alt+L` |
 | Zoom | `Ctrl+=` · `Ctrl+-` · `Ctrl+0` · `Ctrl+wheel` |
 | Zen mode | `F11` |
-| Insert time/date | `F5` |
+| Insert time/date | `F5` (in files that can't be run) |
 | Select next occurrence / all occurrences | `Ctrl+D` · `Ctrl+Shift+L` |
 | Move / duplicate / delete line | `Alt+↑↓` · `Shift+Alt+↓` · `Ctrl+Shift+K` |
 
 Any shortcut can be changed in `settings.json` under `"keybindings"` (Settings → Keyboard lists the command IDs).
+
+## Compile & run
+
+Open or save a file with a supported extension and two buttons appear in the title bar: **Compile** (`Ctrl+Shift+B`) and **Compile & Run** (`F5`). The file is saved first. Margin uses whatever compilers are on your `PATH`:
+
+| Extension | Compile | Run |
+|---|---|---|
+| `.c` | `gcc "${file}" -o "${exe}" -Wall -g` | `"${exe}"` |
+| `.cpp` `.cc` `.cxx` | `g++ "${file}" -o "${exe}" -Wall -g` | `"${exe}"` |
+| `.rs` | `rustc "${file}" -o "${exe}" -g` (or `cargo build` inside a Cargo project) | `"${exe}"` (or `cargo run`) |
+| `.go` | `go build -o "${exe}" "${file}"` | `"${exe}"` |
+| `.java` | `javac "${file}"` | `java -cp "${dir}" "${name}"` |
+| `.py` | syntax check | `python -u "${file}"` |
+| `.js` `.ts` `.rb` `.lua` `.php` `.pl` `.dart` `.sh` `.ps1` `.bat` | — / syntax check | the matching interpreter |
+
+Change any of these (or add a language) in `settings.json`:
+
+```jsonc
+"runners": {
+  "c":   { "compile": "C:\\msys64\\ucrt64\\bin\\gcc.exe \"${file}\" -o \"${exe}\" -O2 -Wall" },
+  "cpp": { "compile": "C:\\msys64\\ucrt64\\bin\\g++.exe \"${file}\" -o \"${exe}\" -std=c++20 -Wall -g" },
+  "kt":  { "compile": "kotlinc \"${file}\" -include-runtime -d \"${dir}\\${name}.jar\"", "run": "java -jar \"${dir}\\${name}.jar\"" }
+}
+```
+
+Variables: `${file}` full path, `${dir}` its folder, `${name}` file name without extension, `${base}` file name, `${exe}` = `${dir}\${name}.exe`.
+
+Programs run in the output panel with their working directory set to the file's folder; type into the input line to send them text (`Ctrl+Z` ends input, `Ctrl+C` or `Shift+F5` stops them). C and C++ programs built for the panel get unbuffered `stdout`, so prompts appear before `scanf` waits. For programs that need a real console window, turn on **Settings → Run → Run programs in a separate console window**.
 
 ## Where things are stored
 
@@ -62,7 +94,10 @@ src-tauri/src/files.rs    reading/writing, encodings, line endings, safe saves
 src-tauri/src/large.rs    large-file viewer backend (index, lines, search)
 src-tauri/src/storage.rs  settings, session, backups, themes, window state
 src/lib/tabs.svelte.ts    tabs, open/save/close, session restore, external changes
+src-tauri/src/run.rs      compiler/program runner (output streaming, input, stop)
 src/lib/commands.ts       every command + keyboard shortcuts
+src/lib/run.svelte.ts     compile & run: language commands, output panel state
+src/lib/sidebar.svelte.ts files sidebar
 src/lib/themes.ts         built-in themes, VS Code theme import
 src/components/           title bar, editor area, preview, find bar, palette, settings…
 ```

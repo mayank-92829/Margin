@@ -21,9 +21,20 @@
     split: "M2.5 3.5h11v9h-11zM8 3.5v9",
     warn: "M8 2 14.5 13.5h-13zM8 6.5v3M8 11.5h.01",
     info: "M8 14.5a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13zM8 7.5v4M8 5h.01",
+    play: "M5 3.2v9.6L12.6 8z",
+    stop: "M4.5 4.5h7v7h-7z",
+    build: "M9.5 2.5 13.5 6.5M11.5 4.5 5 11M3 13l2-2 1 1-2 2zM8.5 3.5l2-1M12.5 7.5l1-2",
+    sidebar: "M2.5 3.5h11v9h-11zM6 3.5v9",
+    folder: "M2 4.5v8h12v-6.5H7.5L6 4.5z",
+    folderOpen: "M2 12.5v-8h4l1.5 1.5H13v1.5M2 12.5l2-5h10.5l-2 5z",
+    file: "M4 1.5h5l3 3v10H4zM9 1.5v3h3",
+    refresh: "M13 3.5v3h-3M12.6 6.5A5 5 0 1 0 13 9",
+    collapse: "M3 4.5h10M3 8h6M3 11.5h3",
+    terminal: "M2.5 3.5h11v9h-11zM5 6.5 7 8 5 9.5M8.5 10h2.5",
+    clear: "M3 13h10M5 10l5-7 3 2-5 7H5z",
   };
 </script>
 
-<svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width={name === "more" ? 2.2 : 1.25} stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<svg width={size} height={size} viewBox="0 0 16 16" fill={name === "play" || name === "stop" ? "currentColor" : "none"} stroke="currentColor" stroke-width={name === "more" ? 2.2 : 1.25} stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
   <path d={paths[name] ?? ""} />
 </svg>

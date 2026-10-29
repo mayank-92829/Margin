@@ -111,12 +111,46 @@ function solid(c: string): string {
   return hex(...rgb(c));
 }
 
-export function deriveColors(b: ThemeBase, dark: boolean): ThemeColors {
+/** WCAG contrast ratio between two colors (1–21). */
+export function contrast(a: string, b: string): number {
+  const x = luminance(a);
+  const y = luminance(b);
+  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+}
+
+/** Nudges `color` away from `bg` (darker on light themes, lighter on dark ones) until it reaches `min` contrast. */
+function readable(color: string, bg: string, min: number): string {
+  const c = solid(color);
+  if (contrast(c, bg) >= min) return c;
+  const target = luminance(bg) > 0.18 ? "#000000" : "#ffffff";
+  for (let t = 0.04; t < 1; t += 0.04) {
+    const v = mix(c, target, t);
+    if (contrast(v, bg) >= min) return v;
+  }
+  return target;
+}
+
+/** A translucent tint of `color` that stays visible on `bg` (selections, search matches). */
+function tint(color: string, bg: string, from: number, min: number): string {
+  let a = from;
+  while (a < 0.6 && contrast(mix(bg, color, a), bg) < min) a += 0.03;
+  return alpha(color, Math.round(a * 100) / 100);
+}
+
+// Minimum contrast against the editor background for each role.
+const MIN: Partial<Record<keyof ThemeColors, number>> = {
+  fg: 7, muted: 4.5, faint: 3.2, gutter: 3, accent: 3.2, danger: 4.5,
+  keyword: 4.5, string: 4.5, number: 4.5, constant: 4.5, function: 4.5, variable: 4.5, property: 4.5,
+  type: 4.5, operator: 4, punctuation: 3.6, tag: 4.5, attribute: 4.5, heading: 4.5, link: 4.5,
+  regexp: 4.5, inserted: 4.5, deleted: 4.5, comment: 3.4, meta: 3.4,
+};
+
+export function deriveColors(b: ThemeBase, dark: boolean, enforce = false): ThemeColors {
   const bg = solid(b.bg);
-  const fg = solid(b.fg);
+  const fg = enforce ? readable(b.fg, bg, MIN.fg!) : solid(b.fg);
   const veryDark = luminance(bg) < 0.012;
   const surface = b.surface ?? (veryDark ? mix(bg, fg, 0.055) : dark ? mix(bg, "#000000", 0.24) : mix(bg, "#000000", 0.045));
-  return {
+  const c: ThemeColors = {
     bg,
     fg,
     surface,
@@ -125,7 +159,7 @@ export function deriveColors(b: ThemeBase, dark: boolean): ThemeColors {
     muted: b.muted ?? mix(fg, bg, 0.32),
     faint: b.faint ?? mix(fg, bg, 0.55),
     accent: b.accent,
-    accentFg: b.accentFg ?? (luminance(solid(b.accent)) > 0.4 ? "#111111" : "#ffffff"),
+    accentFg: b.accentFg ?? "",
     selection: b.selection ?? alpha(b.accent, dark ? 0.3 : 0.22),
     cursor: b.cursor ?? b.accent,
     lineHighlight: b.lineHighlight ?? mix(bg, fg, dark ? 0.045 : 0.035),
@@ -153,10 +187,22 @@ export function deriveColors(b: ThemeBase, dark: boolean): ThemeColors {
     inserted: b.inserted ?? b.str,
     deleted: b.deleted ?? b.tag,
   };
+  if (enforce) {
+    for (const [k, min] of Object.entries(MIN) as [keyof ThemeColors, number][]) {
+      if (k !== "fg" && isHexColor(c[k])) c[k] = readable(c[k], bg, min);
+    }
+    if (contrast(c.border, bg) < 1.3) c.border = readable(c.border, bg, 1.3);
+    if (!b.selection) c.selection = tint(c.accent, bg, dark ? 0.3 : 0.2, 1.3);
+    if (!b.match) c.match = tint(c.number, bg, dark ? 0.25 : 0.2, 1.2);
+    if (!b.matchActive) c.matchActive = tint(c.number, bg, dark ? 0.5 : 0.4, 1.6);
+    if (!b.cursor) c.cursor = c.accent;
+  }
+  if (!c.accentFg) c.accentFg = contrast("#ffffff", solid(c.accent)) >= contrast("#111111", solid(c.accent)) ? "#ffffff" : "#111111";
+  return c;
 }
 
 function t(id: string, name: string, dark: boolean, base: ThemeBase): ThemeDef {
-  return { id, name, dark, colors: deriveColors(base, dark) };
+  return { id, name, dark, colors: deriveColors(base, dark, true) };
 }
 
 export const BUILTIN_THEMES: ThemeDef[] = [

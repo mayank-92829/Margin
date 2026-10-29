@@ -22,7 +22,19 @@ import {
 import { focusMode, typewriter } from "./extras";
 import { highlighter } from "./highlight";
 
+/** Font metrics live in the editor's own theme, so CodeMirror re-measures every line when they change. */
+export interface EditorFont {
+  family: string;
+  size: number;
+  lineHeight: number;
+  letterSpacing: number;
+  ligatures: boolean;
+  /** Max text column in characters; 0 = full width. */
+  textWidth: number;
+}
+
 export interface EditorConfig {
+  font: EditorFont;
   wordWrap: boolean;
   lineNumbers: boolean;
   codeFolding: boolean;
@@ -61,7 +73,31 @@ const comp = {
   writing: new Compartment(),
   pastEnd: new Compartment(),
   cursor: new Compartment(),
+  font: new Compartment(),
 };
+
+const fontThemes = new Map<string, Extension>();
+
+function fontTheme(f: EditorFont): Extension {
+  const key = JSON.stringify(f);
+  let theme = fontThemes.get(key);
+  if (!theme) {
+    const family = f.family === "JetBrains Mono" ? "JetBrains Mono Variable" : f.family;
+    theme = EditorView.theme({
+      "&": { fontSize: `${f.size}px` },
+      ".cm-scroller": {
+        fontFamily: `"${family.replace(/"/g, "")}", var(--mono-font)`,
+        lineHeight: String(f.lineHeight),
+        letterSpacing: `${f.letterSpacing}px`,
+        fontVariantLigatures: f.ligatures ? "normal" : "none",
+        fontFeatureSettings: f.ligatures ? "normal" : '"calt" 0, "liga" 0',
+      },
+      ".cm-content": { maxWidth: f.textWidth ? `calc(${f.textWidth}ch + 56px)` : "none" },
+    });
+    fontThemes.set(key, theme);
+  }
+  return theme;
+}
 
 let vimExtension: Extension | null = null;
 
@@ -78,6 +114,7 @@ export function isVimLoaded(): boolean {
 
 function parts(cfg: EditorConfig): [Compartment, Extension][] {
   return [
+    [comp.font, fontTheme(cfg.font)],
     [comp.wrap, cfg.wordWrap ? EditorView.lineWrapping : []],
     [comp.gutters, [cfg.lineNumbers ? [lineNumbers(), cfg.highlightActiveLine ? highlightActiveLineGutter() : []] : [], cfg.codeFolding ? [codeFolding(), foldGutter()] : []]],
     [comp.activeLine, cfg.highlightActiveLine ? highlightActiveLine() : []],
@@ -122,26 +159,21 @@ const searchExtension = search({
 });
 
 const baseTheme = EditorView.theme({
-  "&": { height: "100%", color: "var(--fg)", backgroundColor: "var(--bg)", fontSize: "var(--editor-size)" },
+  "&": { height: "100%", color: "var(--fg)", backgroundColor: "var(--bg)" },
   "&.cm-focused": { outline: "none" },
-  ".cm-scroller": {
-    fontFamily: "var(--editor-font)",
-    lineHeight: "var(--editor-lh)",
-    letterSpacing: "var(--editor-ls)",
-    fontVariantLigatures: "var(--editor-lig)",
-    fontFeatureSettings: "var(--editor-features)",
-  },
-  ".cm-content": { padding: "16px 0 24px", caretColor: "var(--cursor)", maxWidth: "var(--text-width)", marginInline: "auto" },
+  ".cm-content": { padding: "16px 0 24px", caretColor: "var(--cursor)", marginInline: "auto" },
   ".cm-line": { padding: "0 28px" },
-  ".cm-gutters + .cm-content .cm-line": { paddingLeft: "12px" },
+  // With a limited text width, the line numbers travel with the centered text.
+  ".cm-gutters + .cm-content": { marginLeft: "0" },
+  ".cm-gutters + .cm-content .cm-line": { paddingLeft: "14px" },
   ".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--cursor)", borderLeftWidth: "2px" },
   "&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection": {
     backgroundColor: "var(--selection) !important",
   },
   ".cm-activeLine": { backgroundColor: "var(--line-hl)" },
-  ".cm-gutters": { backgroundColor: "var(--bg)", color: "var(--gutter)", border: "none", paddingLeft: "10px" },
-  ".cm-activeLineGutter": { backgroundColor: "transparent", color: "var(--muted)" },
-  ".cm-lineNumbers .cm-gutterElement": { padding: "0 6px 0 8px", minWidth: "28px" },
+  ".cm-gutters": { backgroundColor: "var(--bg)", color: "var(--gutter)", border: "none", paddingLeft: "12px", marginLeft: "auto" },
+  ".cm-activeLineGutter": { backgroundColor: "var(--line-hl)", color: "var(--fg)" },
+  ".cm-lineNumbers .cm-gutterElement": { padding: "0 4px 0 6px", minWidth: "2.5ch", fontVariantNumeric: "tabular-nums" },
   ".cm-foldGutter .cm-gutterElement": { color: "var(--faint)", padding: "0 4px", cursor: "pointer" },
   ".cm-foldPlaceholder": { backgroundColor: "var(--surface-2)", border: "none", color: "var(--muted)", borderRadius: "4px", padding: "0 6px" },
   ".cm-searchMatch": { backgroundColor: "var(--match)", borderRadius: "2px" },
