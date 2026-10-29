@@ -68,7 +68,8 @@ fn create_main_window(app: &AppHandle, store: &storage::Store) -> tauri::Result<
         .inner_size(980.0, 700.0)
         .min_inner_size(380.0, 240.0)
         .center()
-        .decorations(false)
+        // Windows gets Margin's own title bar; Linux desktops keep their native one.
+        .decorations(!cfg!(windows))
         .visible(false)
         .background_color(tauri::window::Color(r, g, b, 255))
         .initialization_script(store.boot_script())
@@ -149,6 +150,7 @@ pub fn run() {
             run::run_input,
             run::run_kill,
             run::run_in_console,
+            run::tool_info,
         ])
         .build(tauri::generate_context!())
         .expect("error while starting Margin");
@@ -157,6 +159,9 @@ pub fn run() {
         if let RunEvent::Exit = event {
             if let Some(store) = app.try_state::<storage::Store>() {
                 store.save_ui_state();
+            }
+            if let Some(runs) = app.try_state::<run::Runs>() {
+                run::kill_all(&runs);
             }
         }
     });

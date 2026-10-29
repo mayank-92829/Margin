@@ -57,7 +57,7 @@
   // ---- editor behaviour settings → reconfigure the editor
   $effect(() => {
     for (const k of PER_FILE_KEYS) void settings[k];
-    void [JSON.stringify(settings.overrides), settings.keymap, settings.cursorBlink, settings.zoom, ui.zen, tab?.id, tab?.readOnly];
+    void [JSON.stringify(settings.overrides), settings.keymap, settings.cursorBlink, settings.codeLineNumbers, JSON.stringify(settings.runners), settings.zoom, ui.zen, tab?.id, tab?.readOnly];
     untrack(() => syncConfig());
   });
 

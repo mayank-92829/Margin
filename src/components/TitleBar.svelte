@@ -3,6 +3,7 @@
   import { revealItemInDir } from "@tauri-apps/plugin-opener";
   import { tick } from "svelte";
   import { runCommand, shortcutLabel, commands } from "../lib/commands";
+  import { IS_WINDOWS } from "../lib/platform";
   import { settings } from "../lib/settings.svelte";
   import { build, isRunning, run, runnerFor, stop } from "../lib/run.svelte";
   import { toggleSidebar } from "../lib/sidebar.svelte";
@@ -12,7 +13,8 @@
 
   const win = getCurrentWindow();
   const current = $derived(activeTab());
-  const runner = $derived(run.used && current?.kind === "text" ? runnerFor(current.path) : null);
+  const showRun = $derived(settings.runButtons === "always" || (settings.runButtons === "auto" && run.used));
+  const runner = $derived(showRun && current?.kind === "text" ? runnerFor(current.path) : null);
   const running = $derived(isRunning());
   let strip: HTMLDivElement | undefined = $state();
   let drag: { id: string; startX: number; moved: boolean; index: number } | null = null;
@@ -189,13 +191,16 @@
     </div>
   {/if}
   <button class="icon-btn menu-btn" aria-label="Menu" title="Menu" onclick={mainMenu}><Icon name="more" /></button>
-  <div class="controls">
-    <button class="wc" aria-label="Minimize" onclick={() => win.minimize()}>&#xE921;</button>
-    <button class="wc" aria-label={ui.maximized ? "Restore" : "Maximize"} onclick={() => win.toggleMaximize()}>
-      {@html ui.maximized ? "&#xE923;" : "&#xE922;"}
-    </button>
-    <button class="wc close-win" aria-label="Close" onclick={() => win.close()}>&#xE8BB;</button>
-  </div>
+  <!-- Linux desktops draw their own title bar with these buttons. -->
+  {#if IS_WINDOWS}
+    <div class="controls">
+      <button class="wc" aria-label="Minimize" onclick={() => win.minimize()}>&#xE921;</button>
+      <button class="wc" aria-label={ui.maximized ? "Restore" : "Maximize"} onclick={() => win.toggleMaximize()}>
+        {@html ui.maximized ? "&#xE923;" : "&#xE922;"}
+      </button>
+      <button class="wc close-win" aria-label="Close" onclick={() => win.close()}>&#xE8BB;</button>
+    </div>
+  {/if}
 </header>
 
 <style>

@@ -216,6 +216,15 @@ const handlers: Record<string, (a: Args) => unknown> = {
     setTimeout(() => emit("run-exit", { id, code: null, ms: 1 }), 5);
   },
   run_in_console: () => null,
+  tool_info: ({ program }) =>
+    ({
+      gcc: { path: "C:\\MinGW\\bin\\gcc.exe", version: "gcc.exe (MinGW.org GCC-6.3.0-1) 6.3.0" },
+      "g++": { path: "C:\\MinGW\\bin\\g++.exe", version: "g++.exe (MinGW.org GCC-6.3.0-1) 6.3.0" },
+      python: { path: "C:\\Program Files\\Python310\\python.exe", version: "Python 3.10.11" },
+      rustc: { path: "C:\\Users\\demo\\.cargo\\bin\\rustc.exe", version: "rustc 1.98.1 (48a229cea 2026-09-01)" },
+      node: { path: "C:\\Program Files\\nodejs\\node.exe", version: "v24.11.0" },
+      cmd: { path: "C:\\Windows\\System32\\cmd.exe", version: "" },
+    })[program as string] ?? null,
   "plugin:dialog|open": () => `${DIR}\\app.js`,
   "plugin:dialog|save": ({ options }) => options?.defaultPath ?? `${DIR}\\Untitled.txt`,
   "plugin:window|is_maximized": () => false,

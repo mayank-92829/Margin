@@ -7,6 +7,7 @@
   import type { ThemeDef } from "../lib/themes";
   import { ask, ui } from "../lib/ui.svelte";
   import Icon from "./Icon.svelte";
+  import Runners from "./Runners.svelte";
 
   type Key = keyof Settings;
   type Opt = [string | number, string];
@@ -112,10 +113,19 @@
       title: "Run",
       rows: [
         {
+          kind: "select",
+          key: "runButtons",
+          label: "Run buttons in the title bar",
+          desc: "Compile and Run buttons for code files. Ctrl+1 and Ctrl+2 always work.",
+          options: [["auto", "After the first run"], ["always", "Always"], ["never", "Never"]],
+        },
+        { kind: "toggle", key: "clearOutputOnRun", label: "Clear output before each run" },
+        { kind: "toggle", key: "codeLineNumbers", label: "Line numbers in code files", desc: "Shown for files Margin can run, even when line numbers are off elsewhere." },
+        {
           kind: "toggle",
           key: "runInTerminal",
-          label: "Run programs in a separate console window",
-          desc: 'For programs that need a real console (colors, clearing the screen). Compiler messages still show in Margin. The command for each language can be changed under "runners" in settings.json.',
+          label: "Run programs in a separate window",
+          desc: "For programs that need a real terminal (colors, clearing the screen). Compiler messages still show in Margin.",
         },
       ],
     },
@@ -328,6 +338,10 @@
               {/each}
             </section>
           {/each}
+
+          {#if (!q && ui.settingsSection === "run") || (q.length > 1 && "compiler interpreter runner language command gcc python".includes(q))}
+            <Runners />
+          {/if}
 
           {#if showKeyboard}
             <section>

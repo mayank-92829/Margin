@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Added
+- Linux support: `.deb`, `.rpm` and AppImage builds, native title bar, Linux paths, `python3`, terminal-emulator runs, stopping whole process groups.
+- Settings → Run → Languages: see which compiler or interpreter each language uses (path and version, or "not found"), edit its compile/run commands, reset them, or add new file types.
+- Settings → Run: show run buttons after the first run / always / never, keep or clear output between runs, line numbers just for code files.
+- Programs still running are stopped when Margin quits.
 - Compile & run for C, C++, Rust (incl. Cargo projects), Go, Java, Python, JavaScript/TypeScript, Ruby, Lua, PHP, Perl, Dart, shell, PowerShell and batch files — `Ctrl+1` to compile & run, `Ctrl+2` to compile, `Ctrl+Shift+X` to stop.
 - Output panel (`Ctrl+J`) with live output, input for the running program, and clickable compiler errors. Commands are configurable under `"runners"` in `settings.json`; optional separate console window (Settings → Run).
 - Files sidebar (`Ctrl+B`, open a folder with `Ctrl+Shift+O` or by dropping it on the window), remembered between sessions.

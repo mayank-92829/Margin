@@ -63,6 +63,9 @@ export interface Settings {
   showWordCount: boolean;
   // Run
   runInTerminal: boolean;
+  runButtons: "auto" | "always" | "never";
+  clearOutputOnRun: boolean;
+  codeLineNumbers: boolean;
   // Advanced (settings.json only)
   overrides: Record<string, Partial<Settings>>;
   keybindings: Record<string, string>;
@@ -128,6 +131,9 @@ export const DEFAULTS: Settings = {
   showWordCount: true,
 
   runInTerminal: false,
+  runButtons: "auto",
+  clearOutputOnRun: true,
+  codeLineNumbers: false,
 
   overrides: {
     md: { wordWrap: true },
@@ -144,6 +150,7 @@ const ENUMS: Partial<Record<keyof Settings, readonly string[]>> = {
   previewFont: ["sans", "serif", "mono"],
   defaultEol: ["CRLF", "LF"],
   autoSave: ["off", "delay", "focus"],
+  runButtons: ["auto", "always", "never"],
 };
 
 const RANGES: Partial<Record<keyof Settings, [number, number]>> = {

@@ -1,6 +1,8 @@
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { ipc, parseError, type DirEntry } from "./ipc";
-import { basename, dirname, isAbsolute } from "./path";
+import { basename, dirname, isAbsolute, joinPath } from "./path";
+
+export { joinPath };
 import { settings } from "./settings.svelte";
 import { activeTab, openFile, openPaths, scheduleSession, tabsState } from "./tabs.svelte";
 import { openPalette, toast, ui } from "./ui.svelte";
@@ -9,10 +11,6 @@ import { openPalette, toast, ui } from "./ui.svelte";
 export const tree = $state({ children: {} as Record<string, DirEntry[]>, errors: {} as Record<string, string> });
 
 const HIDDEN = new Set([".git", "$recycle.bin", "system volume information", "desktop.ini", "thumbs.db"]);
-
-export function joinPath(dir: string, name: string): string {
-  return /[\\/]$/.test(dir) ? dir + name : `${dir}\\${name}`;
-}
 
 export async function loadDir(path: string): Promise<void> {
   try {
@@ -97,7 +95,7 @@ export function newFileIn(dir: string): void {
     },
     onSelect: async (item) => {
       if (!item.id) return;
-      const path = joinPath(dir, item.id.replace(/\//g, "\\"));
+      const path = joinPath(dir, item.id);
       try {
         const [existing] = await ipc.statFiles([path]);
         if (!existing) await ipc.writeTextFile(path, "", settings.defaultEncoding, false, settings.defaultEol);

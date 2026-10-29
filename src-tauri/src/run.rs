@@ -3,13 +3,18 @@
 use serde::Serialize;
 use std::collections::HashMap;
 use std::io::{Read, Write};
-use std::os::windows::process::CommandExt;
+use std::path::PathBuf;
 use std::process::{ChildStdin, Command, Stdio};
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, State};
 
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
+
+#[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+#[cfg(windows)]
 const CREATE_NEW_CONSOLE: u32 = 0x0000_0010;
 
 struct Running {
@@ -53,29 +58,63 @@ fn is_c_compiler(program: &str) -> bool {
     matches!(name, "gcc" | "g++" | "cc" | "c++" | "clang" | "clang++") || name.ends_with("-gcc") || name.ends_with("-g++")
 }
 
-/// Finds a bare program name on PATH, including `.cmd`/`.bat` shims (npx, yarn…) that
+/// Finds a program on PATH. On Windows this includes `.cmd`/`.bat` shims (npx, yarn…) that
 /// `Command` wouldn't find by itself.
-fn resolve(program: &str) -> std::path::PathBuf {
+fn which(program: &str) -> Option<PathBuf> {
     let p = std::path::Path::new(program);
-    if p.components().count() > 1 || p.extension().is_some() {
-        return p.to_path_buf();
+    if p.components().count() > 1 {
+        return p.is_file().then(|| p.to_path_buf());
     }
-    if let Some(paths) = std::env::var_os("PATH") {
-        for dir in std::env::split_paths(&paths) {
-            for ext in ["exe", "cmd", "bat", "com"] {
-                let candidate = dir.join(format!("{program}.{ext}"));
-                if candidate.is_file() {
-                    return candidate;
-                }
+    let exts: &[&str] = if cfg!(windows) && p.extension().is_none() { &["exe", "cmd", "bat", "com"] } else { &[""] };
+    let paths = std::env::var_os("PATH")?;
+    for dir in std::env::split_paths(&paths) {
+        for ext in exts {
+            let candidate = if ext.is_empty() { dir.join(program) } else { dir.join(format!("{program}.{ext}")) };
+            if candidate.is_file() {
+                return Some(candidate);
             }
         }
     }
-    p.to_path_buf()
+    None
+}
+
+fn resolve(program: &str) -> PathBuf {
+    which(program).unwrap_or_else(|| PathBuf::from(program))
+}
+
+/// A command that never flashes a console window on Windows and can be stopped as a group.
+fn quiet(program: impl AsRef<std::ffi::OsStr>) -> Command {
+    #[allow(unused_mut)]
+    let mut cmd = Command::new(program);
+    #[cfg(windows)]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        cmd.process_group(0);
+    }
+    cmd
+}
+
+fn kill_tree(pid: u32) {
+    #[cfg(windows)]
+    let mut cmd = {
+        let mut c = quiet("taskkill");
+        c.args(["/PID", &pid.to_string(), "/T", "/F"]);
+        c
+    };
+    #[cfg(unix)]
+    let mut cmd = {
+        let mut c = Command::new("kill");
+        c.args(["-KILL", "--", &format!("-{pid}")]);
+        c
+    };
+    let _ = cmd.stdout(Stdio::null()).stderr(Stdio::null()).status();
 }
 
 fn spawn_error(program: &str, e: std::io::Error) -> String {
     if e.kind() == std::io::ErrorKind::NotFound {
-        format!("NOTFOUND:“{program}” wasn't found. Install it, add it to PATH, or change the command under \"runners\" in settings.json.")
+        format!("NOTFOUND:“{program}” wasn't found. Install it, add it to PATH, or change its command in Settings → Run.")
     } else {
         format!("SPAWN:Couldn't start {program}: {e}")
     }
@@ -111,7 +150,7 @@ fn pump(app: AppHandle, id: u32, err: bool, mut src: impl Read) {
 #[tauri::command]
 pub fn run_start(app: AppHandle, runs: State<'_, Runs>, id: u32, argv: Vec<String>, cwd: String, unbuffer: bool) -> Result<(), String> {
     let (program, rest) = argv.split_first().ok_or("SPAWN:Nothing to run.")?;
-    let mut cmd = Command::new(resolve(program));
+    let mut cmd = quiet(resolve(program));
     if unbuffer && is_c_compiler(program) {
         if let Some(h) = unbuffer_header() {
             cmd.arg("-include").arg(h);
@@ -123,8 +162,7 @@ pub fn run_start(app: AppHandle, runs: State<'_, Runs>, id: u32, argv: Vec<Strin
         .env("PYTHONIOENCODING", "utf-8")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .creation_flags(CREATE_NO_WINDOW);
+        .stderr(Stdio::piped());
     let started = Instant::now();
     let mut child = cmd.spawn().map_err(|e| spawn_error(program, e))?;
     let out = child.stdout.take().map(|s| {
@@ -138,15 +176,28 @@ pub fn run_start(app: AppHandle, runs: State<'_, Runs>, id: u32, argv: Vec<Strin
     runs.0.lock().unwrap().insert(id, Running { pid: child.id(), stdin: child.stdin.take() });
     let table = runs.0.clone();
     std::thread::spawn(move || {
-        let code = child.wait().ok().and_then(|s| s.code());
+        let status = child.wait().ok();
         // Deliver all output before announcing the exit.
         for t in [out, err].into_iter().flatten() {
             let _ = t.join();
         }
         table.lock().unwrap().remove(&id);
+        let code = status.and_then(exit_code);
         let _ = app.emit("run-exit", Exit { id, code, ms: started.elapsed().as_millis() as u64 });
     });
     Ok(())
+}
+
+#[cfg(unix)]
+fn exit_code(s: std::process::ExitStatus) -> Option<i32> {
+    use std::os::unix::process::ExitStatusExt;
+    // Killed by a signal other than our own stop: report it like a shell would (128 + signal).
+    s.code().or_else(|| s.signal().filter(|&sig| sig != 9).map(|sig| 128 + sig))
+}
+
+#[cfg(not(unix))]
+fn exit_code(s: std::process::ExitStatus) -> Option<i32> {
+    s.code()
 }
 
 /// Sends text to a running program's standard input; `close` signals end of input.
@@ -170,15 +221,57 @@ pub fn run_input(runs: State<'_, Runs>, id: u32, text: String, close: bool) -> R
 pub fn run_kill(runs: State<'_, Runs>, id: u32) {
     let pid = runs.0.lock().unwrap().get(&id).map(|r| r.pid);
     if let Some(pid) = pid {
-        let _ = Command::new("taskkill")
-            .args(["/PID", &pid.to_string(), "/T", "/F"])
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .creation_flags(CREATE_NO_WINDOW)
-            .status();
+        kill_tree(pid);
     }
 }
 
+/// Stops every program still running (when Margin quits).
+pub fn kill_all(runs: &Runs) {
+    let pids: Vec<u32> = runs.0.lock().unwrap().values().map(|r| r.pid).collect();
+    for pid in pids {
+        kill_tree(pid);
+    }
+}
+
+#[derive(Serialize)]
+pub struct ToolInfo {
+    path: String,
+    version: String,
+}
+
+/// Where a compiler or interpreter is and which version it is, for Settings → Run.
+#[tauri::command(async)]
+pub fn tool_info(program: String) -> Option<ToolInfo> {
+    let path = which(&program)?;
+    let name = path.file_stem().map(|s| s.to_string_lossy().to_lowercase()).unwrap_or_default();
+    let flag = match name.as_str() {
+        "go" | "dart" => Some("version"),
+        "java" => Some("-version"),
+        "lua" => Some("-v"),
+        "cmd" | "powershell" | "bash" | "sh" => None,
+        _ => Some("--version"),
+    };
+    let mut version = String::new();
+    if let Some(flag) = flag {
+        if let Ok(mut child) = quiet(&path).arg(flag).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn() {
+            let deadline = Instant::now() + Duration::from_secs(4);
+            while Instant::now() < deadline {
+                if let Ok(Some(_)) = child.try_wait() {
+                    break;
+                }
+                std::thread::sleep(Duration::from_millis(25));
+            }
+            let _ = child.kill();
+            if let Ok(out) = child.wait_with_output() {
+                let text = String::from_utf8_lossy(&out.stdout).into_owned() + &String::from_utf8_lossy(&out.stderr);
+                version = text.lines().map(str::trim).find(|l| !l.is_empty()).unwrap_or("").chars().take(90).collect();
+            }
+        }
+    }
+    Some(ToolInfo { path: path.to_string_lossy().into_owned(), version })
+}
+
+#[cfg(windows)]
 fn quote(arg: &str) -> String {
     if !arg.is_empty() && !arg.contains([' ', '\t', '"', '&', '|', '<', '>', '^', '(', ')']) {
         arg.to_string()
@@ -188,6 +281,7 @@ fn quote(arg: &str) -> String {
 }
 
 /// Runs `argv` in its own console window that stays open until a key is pressed.
+#[cfg(windows)]
 #[tauri::command]
 pub fn run_in_console(argv: Vec<String>, cwd: String, title: String) -> Result<(), String> {
     let program = argv.first().ok_or("SPAWN:Nothing to run.")?;
@@ -203,6 +297,41 @@ pub fn run_in_console(argv: Vec<String>, cwd: String, title: String) -> Result<(
         .map_err(|e| spawn_error(program, e))
 }
 
+#[cfg(unix)]
+fn sh_quote(arg: &str) -> String {
+    format!("'{}'", arg.replace('\'', r"'\''"))
+}
+
+/// Runs `argv` in a terminal emulator window that stays open until a key is pressed.
+#[cfg(unix)]
+#[tauri::command]
+pub fn run_in_console(argv: Vec<String>, cwd: String, title: String) -> Result<(), String> {
+    let _ = title;
+    let line = argv.iter().map(|a| sh_quote(a)).collect::<Vec<_>>().join(" ");
+    let script = format!("{line}; echo; read -n1 -rsp 'Press any key to close…'");
+    let mut candidates: Vec<String> = std::env::var("TERMINAL").ok().into_iter().collect();
+    candidates.extend(
+        ["x-terminal-emulator", "gnome-terminal", "konsole", "xfce4-terminal", "kitty", "alacritty", "wezterm", "foot", "xterm"]
+            .map(String::from),
+    );
+    for term in candidates {
+        let Some(path) = which(&term) else { continue };
+        let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+        let mut cmd = Command::new(&path);
+        match name.as_str() {
+            "gnome-terminal" => cmd.arg("--"),
+            "kitty" | "foot" => &mut cmd,
+            "wezterm" => cmd.arg("start").arg("--"),
+            "xfce4-terminal" => cmd.arg("-x"),
+            _ => cmd.arg("-e"),
+        };
+        if cmd.args(["bash", "-c", &script]).current_dir(&cwd).spawn().is_ok() {
+            return Ok(());
+        }
+    }
+    Err("NOTFOUND:No terminal emulator was found. Set the TERMINAL environment variable, or turn off \"Run in a separate window\".".into())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -211,11 +340,13 @@ mod tests {
     fn detects_c_compilers() {
         assert!(is_c_compiler("gcc"));
         assert!(is_c_compiler(r"C:\msys64\ucrt64\bin\g++.exe"));
+        assert!(is_c_compiler("/usr/bin/clang"));
         assert!(is_c_compiler("x86_64-w64-mingw32-gcc"));
         assert!(!is_c_compiler("rustc"));
         assert!(!is_c_compiler("python"));
     }
 
+    #[cfg(windows)]
     #[test]
     fn quotes_for_cmd() {
         assert_eq!(quote("a.exe"), "a.exe");
@@ -223,9 +354,11 @@ mod tests {
         assert_eq!(quote("a&b"), r#""a&b""#);
     }
 
+    #[cfg(windows)]
     #[test]
-    fn resolves_cmd_shims() {
-        assert!(resolve("cmd").to_string_lossy().to_lowercase().ends_with("cmd.exe"));
-        assert_eq!(resolve(r"C:\x\y.exe"), std::path::PathBuf::from(r"C:\x\y.exe"));
+    fn finds_programs() {
+        assert!(which("cmd").unwrap().to_string_lossy().to_lowercase().ends_with("cmd.exe"));
+        assert!(which("surely-not-a-real-program").is_none());
+        assert!(tool_info("cmd".into()).is_some());
     }
 }

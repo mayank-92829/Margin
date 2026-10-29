@@ -12,6 +12,7 @@ import { configKey, createEditorState, ensureVim, isVimLoaded, languageEffect, o
 import { ipc, parseError, type Eol, type FileStat } from "./ipc";
 import { basename, dirname, extname, normalize, resolvePath, samePath } from "./path";
 import { loadSettingsText, settings, settingsFor, settingsMeta, type ViewMode } from "./settings.svelte";
+import { runnerFor } from "./runners";
 import { reloadCustomThemes } from "./theme.svelte";
 import { ask, toast, ui } from "./ui.svelte";
 
@@ -170,7 +171,7 @@ export function editorConfigFor(tab: Tab): EditorConfig {
       textWidth: fs.textWidth || (ui.zen ? 72 : 0),
     },
     wordWrap: fs.wordWrap,
-    lineNumbers: fs.lineNumbers,
+    lineNumbers: fs.lineNumbers || (settings.codeLineNumbers && !!runnerFor(tab.path)),
     codeFolding: fs.codeFolding,
     highlightActiveLine: fs.highlightActiveLine,
     showWhitespace: fs.showWhitespace,

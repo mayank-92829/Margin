@@ -1,20 +1,18 @@
 # Margin
 
-A fast, minimal text editor for Windows — Notepad's simplicity with a real editor underneath.
+A fast, minimal text editor for Windows and Linux — Notepad's simplicity with a real editor underneath.
 
 - **Opens instantly**, even multi‑gigabyte files (they open in a read‑only viewer with search; files up to 512 MB can be switched to full editing).
 - **Markdown opens formatted** by default — or side‑by‑side / plain text (Settings → Markdown). Tables, task checkboxes you can click, highlighted code, math (`$…$`, `$$…$$`) and Mermaid diagrams.
 - **Stays out of the way**: it looks like Notepad until you ask for more. The run buttons and output panel appear the first time you press `Ctrl+1`; the sidebar only when you open it.
 - **Compile & run** C, C++, Rust, Go, Java, Python, JavaScript and more with one key. Output appears in a panel under the editor, programs can read input you type there, and compiler errors are clickable.
 - **Files sidebar** (`Ctrl+B`) for the folder you're working in — slides away when you don't need it.
-- **40 themes** (light + dark pairs, high contrast), all checked for readable contrast, follows Windows light/dark, live preview while choosing. Import any VS Code theme, or customize one as a JSON file.
+- **40 themes** (light + dark pairs, high contrast), all checked for readable contrast, follows the system light/dark mode, live preview while choosing. Import any VS Code theme, or customize one as a JSON file.
 - **Never loses work**: unsaved tabs are kept when you close the window and come back next time. Saves are atomic (a crash mid‑save can't corrupt a file).
 - Tabs, find & replace (regex, whole word, case), go to line, multi‑cursor, 100+ languages, encodings (UTF‑8/16, Windows code pages, Shift‑JIS, GBK, …), CRLF/LF, auto‑save, focus & typewriter modes, zen mode, Vim mode, spell check, text tools (sort, dedupe, case, JSON, Base64, URL…).
 - Everything else lives in the **command palette** (`Ctrl+Shift+/`) so the window stays clean.
 
 ## Run & build
-
-Requirements: Rust (MSVC toolchain), Node 20+, Visual Studio Build Tools, WebView2 (built into Windows 11).
 
 ```bash
 npm install
@@ -22,7 +20,15 @@ npm run tauri dev      # run in development
 npm run tauri build    # release build + installer
 ```
 
-The installer is written to `src-tauri/target/release/bundle/nsis/`. It installs per‑user (no admin), adds "Open with" entries for `.txt`/`.md`/`.log`/… and an **Edit with Margin** item to the Explorer right‑click menu.
+**Windows** — needs Rust (MSVC toolchain), Node 20+, Visual Studio Build Tools and WebView2 (built into Windows 11). The installer is written to `src-tauri/target/release/bundle/nsis/`. It installs per‑user (no admin), adds "Open with" entries for `.txt`/`.md`/`.log`/… and an **Edit with Margin** item to the Explorer right‑click menu.
+
+**Linux** — needs Rust, Node 20+ and the WebKitGTK development packages. On Debian/Ubuntu:
+
+```bash
+sudo apt install build-essential curl wget file libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+```
+
+(Fedora: `sudo dnf install webkit2gtk4.1-devel openssl-devel libxdo-devel libappindicator-gtk3-devel librsvg2-devel` plus the "C Development Tools and Libraries" group.) `npm run tauri build` then produces `.deb`, `.rpm` and AppImage packages in `src-tauri/target/release/bundle/`. On Linux, Margin uses the desktop's own title bar.
 
 To work on the UI without the Rust side, run `npm run dev` and open `http://localhost:1420/dev.html` — it uses an in‑memory fake backend (`src/dev/mock.ts`).
 
@@ -65,7 +71,7 @@ In a file with a supported extension, press **Compile & Run** (`Ctrl+1`) or **Co
 | `.py` | syntax check | `python -u "${file}"` |
 | `.js` `.ts` `.rb` `.lua` `.php` `.pl` `.dart` `.sh` `.ps1` `.bat` | — / syntax check | the matching interpreter |
 
-Change any of these (or add a language) in `settings.json`:
+Change any of these, or add a language, in **Settings → Run → Languages** — it also shows which compiler each language will use and its version. The same commands live in `settings.json` under `"runners"`:
 
 ```jsonc
 "runners": {
@@ -77,9 +83,13 @@ Change any of these (or add a language) in `settings.json`:
 
 Variables: `${file}` full path, `${dir}` its folder, `${name}` file name without extension, `${base}` file name, `${exe}` = `${dir}\${name}.exe`.
 
-Programs run in the output panel with their working directory set to the file's folder; type into the input line to send them text (`Ctrl+Z` ends input, `Ctrl+C` or `Ctrl+Shift+X` stops them). C and C++ programs built for the panel get unbuffered `stdout`, so prompts appear before `scanf` waits. For programs that need a real console window, turn on **Settings → Run → Run programs in a separate console window**.
+Programs run in the output panel with their working directory set to the file's folder; type into the input line to send them text (`Ctrl+Z` ends input, `Ctrl+C` or `Ctrl+Shift+X` stops them). C and C++ programs built for the panel get unbuffered `stdout`, so prompts appear before `scanf` waits. For programs that need a real terminal, turn on **Settings → Run → Run programs in a separate window** (on Linux this opens your terminal emulator — set `$TERMINAL` to choose one).
+
+On Linux, built programs are named `${dir}/${name}` (no `.exe`) and Python runs as `python3`.
 
 ## Where things are stored
+
+Windows paths are shown; on Linux they are `~/.config/com.margin.editor/` and `~/.local/share/com.margin.editor/`.
 
 - Settings: `%APPDATA%\com.margin.editor\settings.json` (comments allowed). Per‑file‑type overrides go under `"overrides"`, e.g. `"md": { "fontFamily": "Georgia", "textWidth": 72 }`.
 - Custom themes: `%APPDATA%\com.margin.editor\themes\*.json` — saved changes apply instantly.

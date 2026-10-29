@@ -86,6 +86,7 @@ export const ipc = {
   runInput: (id: number, text: string, close = false) => invoke<void>("run_input", { id, text, close }),
   runKill: (id: number) => invoke<void>("run_kill", { id }),
   runInConsole: (argv: string[], cwd: string, title: string) => invoke<void>("run_in_console", { argv, cwd, title }),
+  toolInfo: (program: string) => invoke<{ path: string; version: string } | null>("tool_info", { program }),
 };
 
 /** Rust errors look like "CODE:message"; plain messages have no code. */

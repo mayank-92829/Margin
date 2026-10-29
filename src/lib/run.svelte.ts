@@ -1,76 +1,13 @@
 import { listen } from "@tauri-apps/api/event";
 import { boot } from "./boot";
 import { ipc, parseError } from "./ipc";
-import { basename, dirname, extname, resolvePath } from "./path";
+import { basename, dirname, extname, joinPath, resolvePath } from "./path";
+import { expand, runnerFor, templateVars } from "./runners";
 import { serializeSettings, settings, settingsMeta } from "./settings.svelte";
 import { activeTab, openFile, saveTab, selectLine, type Tab } from "./tabs.svelte";
 import { toast } from "./ui.svelte";
 
-/**
- * How to build and run a file. Commands are templates: ${file} (full path), ${dir}, ${name}
- * (file name without extension), ${base} (file name) and ${exe} (${dir}\${name}.exe).
- */
-export interface Runner {
-  compile?: string;
-  run: string;
-}
-
-const C = { compile: 'gcc "${file}" -o "${exe}" -Wall -g', run: '"${exe}"' };
-const CPP = { compile: 'g++ "${file}" -o "${exe}" -Wall -g', run: '"${exe}"' };
-const JS = { compile: 'node --check "${file}"', run: 'node "${file}"' };
-
-export const DEFAULT_RUNNERS: Record<string, Runner> = {
-  c: C,
-  cpp: CPP, cc: CPP, cxx: CPP, "c++": CPP,
-  rs: { compile: 'rustc "${file}" -o "${exe}" -g', run: '"${exe}"' },
-  go: { compile: 'go build -o "${exe}" "${file}"', run: '"${exe}"' },
-  java: { compile: 'javac "${file}"', run: 'java -cp "${dir}" "${name}"' },
-  py: { compile: 'python -m py_compile "${file}"', run: 'python -u "${file}"' },
-  pyw: { run: 'python -u "${file}"' },
-  js: JS, mjs: JS, cjs: JS,
-  ts: { run: 'npx --yes tsx "${file}"' },
-  rb: { compile: 'ruby -c "${file}"', run: 'ruby "${file}"' },
-  lua: { run: 'lua "${file}"' },
-  php: { compile: 'php -l "${file}"', run: 'php "${file}"' },
-  pl: { compile: 'perl -c "${file}"', run: 'perl "${file}"' },
-  dart: { run: 'dart run "${file}"' },
-  sh: { run: 'bash "${file}"' },
-  ps1: { run: 'powershell -NoProfile -ExecutionPolicy Bypass -File "${file}"' },
-  bat: { run: 'cmd /d /c "${file}"' },
-  cmd: { run: 'cmd /d /c "${file}"' },
-};
-
-export function runnerFor(path: string | null): Runner | null {
-  if (!path) return null;
-  const ext = extname(path);
-  const custom = settings.runners[ext];
-  const base = DEFAULT_RUNNERS[ext];
-  if (custom) return { compile: "compile" in custom ? custom.compile || undefined : base?.compile, run: custom.run ?? base?.run ?? "" };
-  return base ?? null;
-}
-
-/** Splits a command template into arguments (double quotes group), then fills in the variables. */
-export function expand(template: string, vars: Record<string, string>): string[] {
-  const args: string[] = [];
-  let cur = "";
-  let quoted = false;
-  let started = false;
-  for (const ch of template) {
-    if (ch === '"') {
-      quoted = !quoted;
-      started = true;
-    } else if (!quoted && /\s/.test(ch)) {
-      if (started) args.push(cur);
-      cur = "";
-      started = false;
-    } else {
-      cur += ch;
-      started = true;
-    }
-  }
-  if (started) args.push(cur);
-  return args.map((a) => a.replace(/\$\{(\w+)\}/g, (m, k: string) => vars[k] ?? m));
-}
+export { runnerFor } from "./runners";
 
 // ---------------------------------------------------------------- output panel state
 
@@ -196,7 +133,7 @@ function exitText(code: number | null): string {
 async function cargoRoot(path: string): Promise<string | null> {
   let dir = dirname(path);
   for (let i = 0; i < 6; i++) {
-    const [stat] = await ipc.statFiles([dir + "\\Cargo.toml"]).catch(() => [null]);
+    const [stat] = await ipc.statFiles([joinPath(dir, "Cargo.toml")]).catch(() => [null]);
     if (stat) return dir;
     const up = dirname(dir);
     if (up === dir) break;
@@ -235,7 +172,7 @@ export async function build(andRun: boolean): Promise<void> {
     }
   }
   if (!runner?.run) {
-    toast(`Margin doesn't know how to run .${ext || "untitled"} files. Add a command under "runners" in settings.json.`, {
+    toast(`Margin doesn't know how to run .${ext || "untitled"} files. Add one in Settings → Run.`, {
       action: {
         label: "Open settings",
         run: async () => {
@@ -248,9 +185,9 @@ export async function build(andRun: boolean): Promise<void> {
   }
   if (isRunning()) await stop();
   const gen = ++generation;
-  const name = basename(path).replace(/\.[^.]+$/, "");
-  const vars = { file: path, dir: dirname(path), name, base: basename(path), exe: `${dirname(path)}\\${name}.exe` };
-  clearOutput();
+  const vars = templateVars(path);
+  if (settings.clearOutputOnRun) clearOutput();
+  else if (output.chunks.length) emit("\n", "info");
   run.used = true;
   run.open = true;
   run.cwd = cwd;
