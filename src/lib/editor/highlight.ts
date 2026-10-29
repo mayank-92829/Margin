@@ -1,0 +1,30 @@
+import { tagHighlighter, tags as t } from "@lezer/highlight";
+
+/** Maps syntax tags to CSS classes; colors come from theme variables, so themes switch instantly. */
+export const highlighter = tagHighlighter([
+  { tag: [t.keyword, t.controlKeyword, t.moduleKeyword, t.operatorKeyword, t.definitionKeyword, t.modifier, t.self], class: "tk-keyword" },
+  { tag: [t.string, t.special(t.string), t.character, t.attributeValue, t.docString], class: "tk-string" },
+  { tag: [t.regexp, t.escape], class: "tk-regexp" },
+  { tag: [t.number, t.integer, t.float], class: "tk-number" },
+  { tag: [t.bool, t.null, t.atom, t.unit, t.constant(t.variableName), t.standard(t.variableName), t.color], class: "tk-constant" },
+  { tag: [t.comment, t.lineComment, t.blockComment, t.docComment], class: "tk-comment" },
+  { tag: [t.function(t.variableName), t.function(t.propertyName), t.function(t.definition(t.variableName)), t.macroName], class: "tk-function" },
+  { tag: [t.variableName, t.definition(t.variableName), t.labelName], class: "tk-variable" },
+  { tag: [t.propertyName, t.definition(t.propertyName)], class: "tk-property" },
+  { tag: [t.typeName, t.className, t.namespace, t.standard(t.typeName)], class: "tk-type" },
+  { tag: [t.operator, t.derefOperator, t.arithmeticOperator, t.logicOperator, t.bitwiseOperator, t.compareOperator, t.updateOperator, t.definitionOperator, t.typeOperator, t.controlOperator], class: "tk-operator" },
+  { tag: [t.punctuation, t.separator, t.bracket, t.angleBracket, t.squareBracket, t.paren, t.brace, t.contentSeparator], class: "tk-punctuation" },
+  { tag: [t.tagName, t.standard(t.tagName)], class: "tk-tag" },
+  { tag: t.attributeName, class: "tk-attribute" },
+  { tag: t.heading, class: "tk-heading" },
+  { tag: [t.link, t.url], class: "tk-link" },
+  { tag: t.emphasis, class: "tk-em" },
+  { tag: t.strong, class: "tk-strong" },
+  { tag: t.strikethrough, class: "tk-strike" },
+  { tag: t.quote, class: "tk-quote" },
+  { tag: t.monospace, class: "tk-code" },
+  { tag: [t.meta, t.processingInstruction, t.annotation, t.documentMeta], class: "tk-meta" },
+  { tag: t.inserted, class: "tk-inserted" },
+  { tag: t.deleted, class: "tk-deleted" },
+  { tag: t.invalid, class: "tk-invalid" },
+]);

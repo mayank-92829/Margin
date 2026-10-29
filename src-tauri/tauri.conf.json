@@ -1,0 +1,60 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Margin",
+  "mainBinaryName": "Margin",
+  "version": "1.0.0",
+  "identifier": "com.margin.editor",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [],
+    "security": {
+      "csp": {
+        "default-src": "'self' ipc: http://ipc.localhost",
+        "script-src": "'self'",
+        "style-src": "'self' 'unsafe-inline'",
+        "font-src": "'self' data:",
+        "img-src": "'self' asset: http://asset.localhost https: http: data: blob:",
+        "media-src": "'self' asset: http://asset.localhost https: data: blob:",
+        "connect-src": "'self' ipc: http://ipc.localhost ws://localhost:1420 ws://127.0.0.1:1420"
+      },
+      "dangerousDisableAssetCspModification": ["style-src"],
+      "assetProtocol": {
+        "enable": true,
+        "scope": ["**"]
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "publisher": "Margin",
+    "copyright": "Margin",
+    "category": "Productivity",
+    "shortDescription": "A fast, minimal, beautiful text editor",
+    "longDescription": "Margin is a fast, minimal text editor with rendered Markdown, themes, tabs and large-file support.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "fileAssociations": [
+      { "ext": ["txt", "text", "log", "nfo"], "name": "Text Document", "description": "Text Document", "role": "Editor" },
+      { "ext": ["md", "markdown", "mdown", "mkd"], "name": "Markdown Document", "description": "Markdown Document", "role": "Editor" },
+      { "ext": ["ini", "cfg", "conf"], "name": "Configuration File", "description": "Configuration File", "role": "Editor" }
+    ],
+    "windows": {
+      "webviewInstallMode": { "type": "downloadBootstrapper" },
+      "nsis": {
+        "installMode": "currentUser",
+        "installerHooks": "./windows/hooks.nsh"
+      }
+    }
+  }
+}
