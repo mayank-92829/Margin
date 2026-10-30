@@ -70,7 +70,9 @@ fn create_main_window(app: &AppHandle, store: &storage::Store) -> tauri::Result<
         .center()
         // Windows gets Margin's own title bar; Linux desktops keep their native one.
         .decorations(!cfg!(windows))
-        .visible(false)
+        // Windows stays hidden until the UI has painted (no white flash). Some Linux
+        // compositors never present a window that starts hidden, so it shows right away there.
+        .visible(!cfg!(windows))
         .background_color(tauri::window::Color(r, g, b, 255))
         .initialization_script(store.boot_script())
         .build()?;
@@ -89,6 +91,11 @@ fn create_main_window(app: &AppHandle, store: &storage::Store) -> tauri::Result<
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // WSL's Wayland bridge doesn't present WebKitGTK windows reliably; its X11 bridge does.
+    #[cfg(target_os = "linux")]
+    if std::env::var_os("WSL_DISTRO_NAME").is_some() && std::env::var_os("GDK_BACKEND").is_none() {
+        std::env::set_var("GDK_BACKEND", "x11");
+    }
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
             let files = file_args(&argv, Path::new(&cwd));
