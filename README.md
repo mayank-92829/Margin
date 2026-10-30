@@ -108,6 +108,12 @@ Windows paths are shown; on Linux they are `~/.config/com.margin.editor/` and `~
 - Custom themes: `%APPDATA%\com.margin.editor\themes\*.json` — saved changes apply instantly.
 - Open tabs and unsaved text: `%LOCALAPPDATA%\com.margin.editor\`.
 
+## Documentation
+
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): how everything works, including startup, file I/O and encodings, large files, tabs and sessions, commands, themes, Markdown and compile & run.
+- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): setup, tests, building for Windows and Linux, the release steps, how to add commands, settings, themes and languages, and a step-by-step path to rebuild it yourself.
+- [CHANGELOG.md](CHANGELOG.md)
+
 ## How it's built
 
 - **Tauri 2 (Rust)** — file I/O, encoding detection (`encoding_rs` + `chardetng`), atomic saves, and the large‑file engine: a sparse line index built in the background so any line of a huge file is a few KB of reading away, plus streaming regex search. Files are never locked against other programs.
