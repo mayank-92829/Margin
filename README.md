@@ -12,6 +12,19 @@ A fast, minimal text editor for Windows and Linux — Notepad's simplicity with 
 - Tabs, find & replace (regex, whole word, case), go to line, multi‑cursor, 100+ languages, encodings (UTF‑8/16, Windows code pages, Shift‑JIS, GBK, …), CRLF/LF, auto‑save, focus & typewriter modes, zen mode, Vim mode, spell check, text tools (sort, dedupe, case, JSON, Base64, URL…).
 - Everything else lives in the **command palette** (`Ctrl+Shift+/`) so the window stays clean.
 
+## Download
+
+Get the latest version from [Releases](https://github.com/mayank-92829/Margin/releases/latest):
+
+| | |
+|---|---|
+| Windows 10/11 | `Margin_<version>_x64-setup.exe` — installs per-user, no admin needed |
+| Debian, Ubuntu, Mint | `Margin_<version>_amd64.deb` — `sudo apt install ./Margin_<version>_amd64.deb` |
+| Fedora, openSUSE | `Margin-<version>-1.x86_64.rpm` — `sudo dnf install ./Margin-<version>-1.x86_64.rpm` |
+| Any Linux | `Margin_<version>_amd64.AppImage` — `chmod +x` it and run |
+
+Compile & run uses the compilers already on your system (gcc, python, …); Margin doesn't bundle any.
+
 ## Run & build
 
 ```bash
