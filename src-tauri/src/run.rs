@@ -354,6 +354,34 @@ mod tests {
         assert_eq!(quote("a&b"), r#""a&b""#);
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn finds_programs_on_linux() {
+        assert!(which("sh").is_some());
+        assert!(which("surely-not-a-real-program").is_none());
+        assert!(tool_info("sh".into()).is_some());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn quotes_for_shell() {
+        assert_eq!(sh_quote("a b"), "'a b'");
+        assert_eq!(sh_quote("it's"), r"'it'\''s'");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn stops_whole_process_group() {
+        // A shell that starts a child: stopping must end both.
+        let mut child = quiet("sh").args(["-c", "sleep 30 & wait"]).spawn().unwrap();
+        std::thread::sleep(Duration::from_millis(200));
+        let started = Instant::now();
+        kill_tree(child.id());
+        let status = child.wait().unwrap();
+        assert!(started.elapsed() < Duration::from_secs(5));
+        assert_eq!(exit_code(status), None);
+    }
+
     #[cfg(windows)]
     #[test]
     fn finds_programs() {
