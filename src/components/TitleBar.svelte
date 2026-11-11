@@ -7,7 +7,7 @@
   import { settings } from "../lib/settings.svelte";
   import { build, isRunning, run, runnerFor, stop } from "../lib/run.svelte";
   import { toggleSidebar } from "../lib/sidebar.svelte";
-  import { activate, activeTab, closeTab, closeTabs, moveTab, newTab, reopenClosed, setLanguage, stateOf, tabsState, type Tab } from "../lib/tabs.svelte";
+  import { activate, activeTab, closeTab, closeTabs, moveTab, newTab, refreshDirty, reopenClosed, setLanguage, stateOf, tabsState, type Tab } from "../lib/tabs.svelte";
   import { detectLanguage, detectLanguageFromContent } from "../lib/editor/languages";
   import { openMenu, toast, ui, type MenuItem } from "../lib/ui.svelte";
   import Icon from "./Icon.svelte";
@@ -37,8 +37,13 @@
     if (renamingTabId !== tab.id) return;
     const val = renameValue.trim();
     renamingTabId = null;
-    if (!val || val === tab.title) return;
+    if (!val) {
+      tab.customTitle = false;
+      refreshDirty(tab);
+      return;
+    }
     tab.title = val;
+    tab.customTitle = true;
     const detected = detectLanguage(val);
     if (detected) {
       setLanguage(tab, detected.name, false);
@@ -238,7 +243,7 @@
         onpointercancel={up}
         onauxclick={(e) => e.button === 1 && e.preventDefault()}
         oncontextmenu={(e) => tabMenu(e, tab)}
-        ondblclick={(e) => { if (!tab.path) { e.stopPropagation(); startRename(tab); } }}
+        ondblclick={(e) => { if (!tab.path && renamingTabId !== tab.id) { e.stopPropagation(); startRename(tab); } }}
       >
         {#if renamingTabId === tab.id}
           <input

@@ -1,10 +1,13 @@
 # Changelog
 
-## 1.3.1 — 2026-11-11
+## 1.3.2 — 2026-11-11
 
 ### Fixed & Improved
 - Content-based language auto-detection: typing or pasting code into an untitled unsaved tab immediately auto-detects the programming language (e.g. `print(...)` -> Python, `#include <stdio.h>` -> C, `fn main` -> Rust, `<!DOCTYPE html>` -> HTML, `package main` -> Go, `public class` -> Java, `console.log` -> JavaScript) and applies syntax highlighting in real time.
+- Persistent custom tab titles: custom renamed tab titles are preserved and protected from being overwritten by auto-titling when typing in the editor.
+- Editor text persistence on tab rename: double-clicking tab title to rename now preserves the active editor state without resetting or losing typed text.
 - Silent window close: closing Margin with unsaved tabs discards unsaved tabs and scratch files immediately without prompting "Save changes?", closing clean and starting fresh on next launch.
+- Format Document & Selection: lightweight structural formatter for brace-based code (C, C++, Rust, JS, TS, Java, etc.) and auto-detected JSON, preserving undo history and cursor position without resetting the editor view.
 - Silent tab close for unsaved tabs: closing an individual untitled scratch tab closes immediately without save prompt.
 
 ## 1.3.0 — 2026-11-11

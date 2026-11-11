@@ -267,40 +267,197 @@ async function importVSCodeTheme(): Promise<void> {
   }
 }
 
+/** Lightweight structural formatter for brace-based code (C, C++, Rust, JS, TS, Java, etc.) */
+function formatBraceCode(src: string, tabSize = 2, insertSpaces = true): string {
+  const indentStr = insertSpaces ? " ".repeat(tabSize) : "\t";
+  let out = "";
+  let inString: string | null = null;
+  let inLineComment = false;
+  let inBlockComment = false;
+  let parenDepth = 0;
+  let forParenDepth = -1;
+
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i];
+    const next = src[i + 1] || "";
+    const prev = src[i - 1] || "";
+
+    if (inLineComment) {
+      out += ch;
+      if (ch === "\n") inLineComment = false;
+      continue;
+    }
+    if (inBlockComment) {
+      out += ch;
+      if (prev === "*" && ch === "/") inBlockComment = false;
+      continue;
+    }
+    if (inString) {
+      out += ch;
+      if (ch === inString && prev !== "\\") inString = null;
+      continue;
+    }
+
+    if (ch === "/" && next === "/") {
+      inLineComment = true;
+      out += ch;
+      continue;
+    }
+    if (ch === "/" && next === "*") {
+      inBlockComment = true;
+      out += ch;
+      continue;
+    }
+    if (ch === '"' || ch === "'" || ch === "`") {
+      inString = ch;
+      out += ch;
+      continue;
+    }
+
+    if (ch === "(") {
+      parenDepth++;
+      const lastWord = out.slice(-10).trim();
+      if (lastWord.endsWith("for")) forParenDepth = parenDepth;
+      out += ch;
+      continue;
+    }
+    if (ch === ")") {
+      if (parenDepth === forParenDepth) forParenDepth = -1;
+      parenDepth--;
+      out += ch;
+      continue;
+    }
+
+    if (ch === ",") {
+      out += ",";
+      if (next && next !== " " && next !== "\n" && next !== "\r" && next !== "\t") {
+        out += " ";
+      }
+      continue;
+    }
+
+    if (ch === ";") {
+      out += ";";
+      if (forParenDepth === -1) {
+        if (next && next !== "\n" && next !== "\r" && next !== "}") {
+          out += "\n";
+        }
+      }
+      continue;
+    }
+
+    if (ch === "{") {
+      if (prev && prev !== " " && prev !== "\n" && prev !== "\t" && prev !== "(") {
+        out += " ";
+      }
+      out += "{";
+      if (next && next !== "\n" && next !== "\r" && next !== "}") {
+        out += "\n";
+      }
+      continue;
+    }
+
+    if (ch === "}") {
+      if (out && !out.endsWith("\n") && !out.endsWith("{")) {
+        out += "\n";
+      }
+      out += "}";
+      if (next && next !== ";" && next !== "," && next !== ")" && next !== "\n" && next !== "\r" && !next.startsWith("else")) {
+        out += "\n";
+      }
+      continue;
+    }
+
+    out += ch;
+  }
+
+  const rawLines = out.split(/\r?\n/);
+  const formattedLines: string[] = [];
+  let depth = 0;
+
+  for (const line of rawLines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      formattedLines.push("");
+      continue;
+    }
+
+    const opens = (trimmed.match(/\{/g) || []).length;
+    const closes = (trimmed.match(/\}/g) || []).length;
+
+    let leadingCloses = 0;
+    for (const c of trimmed) {
+      if (c === "}") leadingCloses++;
+      else if (c === " " || c === "\t") continue;
+      else break;
+    }
+
+    const currentDepth = Math.max(0, depth - leadingCloses);
+    formattedLines.push(indentStr.repeat(currentDepth) + trimmed);
+    depth = Math.max(0, depth + opens - closes);
+  }
+
+  return formattedLines.join("\n");
+}
+
 export function formatDocument(): void {
   const view = getView();
   if (!view) return;
   const tab = textTab();
-  if (!tab) return;
-  const { state, dispatch } = view;
+  if (!tab || tab.readOnly) return;
+  const { state } = view;
 
-  if (tab.language === "JSON") {
+  const sel = state.selection.main;
+  const isFull = sel.empty || (sel.from === 0 && sel.to === state.doc.length);
+  const start = isFull ? 0 : sel.from;
+  const end = isFull ? state.doc.length : sel.to;
+  const text = state.sliceDoc(start, end);
+  const trimmed = text.trim();
+
+  const tabSize = tab.indent?.size || 2;
+  const insertSpaces = tab.indent?.spaces ?? true;
+
+  // 1. JSON formatting (auto-detected by language or JSON syntax)
+  if (tab.language === "JSON" || ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]")))) {
     try {
-      const text = state.sliceDoc();
       const obj = JSON.parse(text);
-      const indent = tab.indent?.spaces ? tab.indent.size : 2;
-      const formatted = JSON.stringify(obj, null, indent);
-      dispatch({
-        changes: { from: 0, to: text.length, insert: formatted },
+      const formatted = JSON.stringify(obj, null, insertSpaces ? tabSize : "\t");
+      view.dispatch({
+        changes: { from: start, to: end, insert: formatted },
+        userEvent: "format",
       });
       toast("Formatted JSON", { ms: 1000 });
       return;
     } catch {
-      // Fall back to indentation
+      // Not valid JSON, proceed with code formatting
     }
   }
 
-  const sel = state.selection.main;
-  if (sel.empty) {
-    const fullRange = EditorSelection.range(0, state.doc.length);
-    const tempState = state.update({ selection: EditorSelection.create([fullRange]) });
-    view.setState(tempState.state);
-    indentSelection(view);
-    const pos = Math.min(sel.head, view.state.doc.length);
-    view.dispatch({ selection: EditorSelection.cursor(pos) });
-  } else {
-    indentSelection(view);
+  // 2. Brace-based languages structural formatting
+  const isBraceLang = !tab.language || ["C", "C++", "Rust", "JavaScript", "TypeScript", "Java", "Go", "CSS", "PHP"].includes(tab.language);
+  if (isBraceLang && (text.includes("{") || text.includes(";"))) {
+    const formatted = formatBraceCode(text, tabSize, insertSpaces);
+    if (formatted !== text) {
+      view.dispatch({
+        changes: { from: start, to: end, insert: formatted },
+        userEvent: "format",
+      });
+      if (tab.language) {
+        view.dispatch({ selection: EditorSelection.single(0, view.state.doc.length) });
+        indentSelection(view);
+        const pos = Math.min(sel.head, view.state.doc.length);
+        view.dispatch({ selection: EditorSelection.cursor(pos) });
+      }
+      toast("Document formatted", { ms: 1000 });
+      return;
+    }
   }
+
+  // 3. Syntax-aware AST indentation across the document
+  const pos = sel.head;
+  view.dispatch({ selection: EditorSelection.single(0, state.doc.length) });
+  indentSelection(view);
+  view.dispatch({ selection: EditorSelection.cursor(Math.min(pos, view.state.doc.length)) });
   toast("Document formatted", { ms: 1000 });
 }
 

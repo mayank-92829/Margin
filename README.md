@@ -52,11 +52,15 @@ Everything works without the F-keys (which need `Fn` on most laptops); `F1`, `F3
 | | |
 |---|---|
 | New tab / Open / Save / Save as | `Ctrl+N` · `Ctrl+O` · `Ctrl+S` · `Ctrl+Shift+S` |
+| Quick Open (files in folder) | `Ctrl+P` |
 | Close tab / Reopen closed tab | `Ctrl+W` · `Ctrl+Alt+R` |
 | Next / previous tab, tab 1–9 | `Ctrl+Tab` · `Ctrl+Shift+Tab` · `Alt+1…9` |
 | Find / Replace / next / previous | `Ctrl+F` · `Ctrl+H` · `Enter` / `Shift+Enter` in the find bar (or `F3` · `Shift+F3`) |
 | Go to line | `Ctrl+G` |
 | Command palette | `Ctrl+Shift+/` or `F1` |
+| Select language mode | `Alt+L` |
+| Format document / selection | `Shift+Alt+F` · `Ctrl+Shift+I` |
+| Column / Box selection | `Alt+Drag` · `Alt+Shift+↑↓` · `Ctrl+Alt+↑↓` |
 | Compile & run / compile / stop | `Ctrl+1` · `Ctrl+2` · `Ctrl+Shift+X` |
 | Output panel / sidebar / open folder | `Ctrl+J` · `Ctrl+B` · `Ctrl+Shift+O` |
 | Settings / Theme / Light↔Dark | `Ctrl+,` · `Ctrl+Alt+T` · `Ctrl+Alt+D` |

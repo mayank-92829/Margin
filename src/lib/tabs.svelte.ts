@@ -34,6 +34,7 @@ export interface Tab {
   lossy: boolean;
   language: string | null;
   languageAuto: boolean;
+  customTitle?: boolean;
   indent: { spaces: boolean; size: number } | null;
   viewMode: ViewMode;
   loaded: boolean;
@@ -139,6 +140,7 @@ function makeTab(init: Partial<Tab>): Tab {
     lossy: false,
     language: null,
     languageAuto: true,
+    customTitle: false,
     indent: null,
     viewMode: "source",
     loaded: false,
@@ -211,7 +213,7 @@ export function mountActive(): void {
   if (!view || !tab || tab.kind !== "text" || !tab.loaded) return;
   const d = tabData(tab);
   if (!d.state) return;
-  if (viewTabId !== tab.id || view.state !== d.state) {
+  if (viewTabId !== tab.id) {
     view.setState(d.state);
     viewTabId = tab.id;
     docSignal.version++;
@@ -298,13 +300,13 @@ let docTimer: ReturnType<typeof setTimeout> | undefined;
 let statusFrame = 0;
 let wordsTimer: ReturnType<typeof setTimeout> | undefined;
 
-function refreshDirty(tab: Tab): void {
+export function refreshDirty(tab: Tab): void {
   const state = stateOf(tab);
   if (!state) return;
   const saved = tabData(tab).saved;
   const contentDirty = saved ? state.doc.length !== saved.length || !state.doc.eq(saved) : state.doc.length > 0;
   tab.dirty = contentDirty || tab.metaDirty;
-  if (!tab.path) tab.title = untitledTitle(state.doc);
+  if (!tab.path && !tab.customTitle) tab.title = untitledTitle(state.doc);
 }
 
 function updateStatus(state: EditorState, recount = false): void {
@@ -335,6 +337,7 @@ onEditorUpdate((u: ViewUpdate) => {
   if (!tab || tab.kind !== "text") return;
   const d = data.get(tab.id);
   if (!d || !d.state) return;
+  d.state = u.state;
   if (u.docChanged) {
     docSignal.version++;
     // Mark dirty on the first keystroke; refine (e.g. undo back to saved) shortly after.
@@ -444,7 +447,7 @@ async function loadUntitledLike(tab: Tab, content: string): Promise<void> {
   d.backedUp = d.state.doc;
   tab.loaded = true;
   tab.dirty = true;
-  if (!tab.path) tab.title = untitledTitle(d.state.doc);
+  if (!tab.path && !tab.customTitle) tab.title = untitledTitle(d.state.doc);
 }
 
 async function openLarge(tab: Tab, stat: FileStat): Promise<void> {
@@ -968,6 +971,7 @@ interface SessionTab {
   metaDirty: boolean;
   language: string | null;
   languageAuto: boolean;
+  customTitle?: boolean;
   viewMode: ViewMode;
   dirty: boolean;
   hasBackup: boolean;
@@ -1040,6 +1044,7 @@ async function writeSession(withBackups: boolean): Promise<void> {
       metaDirty: tab.metaDirty,
       language: tab.language,
       languageAuto: tab.languageAuto,
+      customTitle: tab.customTitle,
       viewMode: tab.viewMode,
       dirty: tab.dirty,
       hasBackup: d.hasBackup,
@@ -1093,6 +1098,7 @@ export async function restoreSession(text: string | null): Promise<void> {
         metaDirty: !!st.metaDirty && settings.rememberUnsaved,
         language: st.language ?? null,
         languageAuto: st.languageAuto !== false,
+        customTitle: !!st.customTitle,
         viewMode: st.viewMode === "preview" || st.viewMode === "split" ? st.viewMode : "source",
         dirty: !!st.dirty && st.hasBackup && settings.rememberUnsaved,
       }),
