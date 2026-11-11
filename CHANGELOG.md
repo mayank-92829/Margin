@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.3.0 — 2026-11-11
+
+### Added
+- Rename unsaved tabs: double-click tab title or right-click → "Rename tab…" to type a name with extension (e.g. `main.c`, `test.cpp`), immediately activating that language mode and runner.
+- Quick shortcut `Alt+L`: instantly opens the searchable language picker.
+- Quick Open (`Ctrl+P`): fuzzy-search and jump to any file when a folder or project is open in the sidebar.
+- Column / Box Selection: `Alt+Drag` rectangular selection and `Alt+Shift+Up/Down` / `Ctrl+Alt+Up/Down` to insert multi-line cursors.
+- Format Document / Selection (`Shift+Alt+F` / `Ctrl+Shift+I`): syntax-aware code indentation and JSON formatting.
+- Fresh startup mode: Margin starts fresh with a single clean tab on launch, closing old saved tabs and clearing unsaved scratch.
+- Automatic temp file cleanup: scratch runner files in `%TEMP%` are deleted automatically when tabs close or the app exits.
+
 ## 1.2.0 — 2026-11-11
 
 ### Added

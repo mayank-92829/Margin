@@ -302,6 +302,15 @@ pub fn write_text_file(
 }
 
 #[tauri::command(async)]
+pub fn delete_file(path: String) -> Result<(), String> {
+    let p = Path::new(&path);
+    if p.exists() {
+        let _ = fs::remove_file(p);
+    }
+    Ok(())
+}
+
+#[tauri::command(async)]
 pub fn stat_files(paths: Vec<String>) -> Vec<Option<FileStat>> {
     paths
         .iter()

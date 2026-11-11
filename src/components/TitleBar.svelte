@@ -19,6 +19,41 @@
   const running = $derived(isRunning());
   let strip: HTMLDivElement | undefined = $state();
   let drag: { id: string; startX: number; moved: boolean; index: number } | null = null;
+  let renamingTabId: string | null = $state(null);
+  let renameValue = $state("");
+  let renameInput: HTMLInputElement | undefined = $state();
+
+  function startRename(tab: Tab) {
+    if (tab.path) return;
+    renamingTabId = tab.id;
+    renameValue = tab.title;
+    tick().then(() => {
+      renameInput?.focus();
+      renameInput?.select();
+    });
+  }
+
+  function commitRename(tab: Tab) {
+    if (renamingTabId !== tab.id) return;
+    const val = renameValue.trim();
+    renamingTabId = null;
+    if (!val || val === tab.title) return;
+    tab.title = val;
+    const detected = detectLanguage(val);
+    if (detected) {
+      setLanguage(tab, detected.name, false);
+    }
+  }
+
+  function onRenameKey(e: KeyboardEvent, tab: Tab) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      commitRename(tab);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      renamingTabId = null;
+    }
+  }
 
   const hint = (id: string) => {
     const c = commands.find((x) => x.id === id);
@@ -72,6 +107,7 @@
     const list = tabsState.list;
     const i = list.findIndex((t) => t.id === tab.id);
     openMenu(e.clientX, e.clientY, [
+      ...(!tab.path ? [{ label: "Rename…", run: () => startRename(tab) }, { separator: true }] : []),
       { label: "Close", hint: hint("file.close"), run: () => closeTab(tab.id) },
       { label: "Close others", disabled: list.length < 2, run: () => closeTabs(list.filter((t) => t.id !== tab.id).map((t) => t.id)) },
       { label: "Close to the right", disabled: i >= list.length - 1, run: () => closeTabs(list.slice(i + 1).map((t) => t.id)) },
@@ -203,8 +239,20 @@
         onpointercancel={up}
         onauxclick={(e) => e.button === 1 && e.preventDefault()}
         oncontextmenu={(e) => tabMenu(e, tab)}
+        ondblclick={(e) => { if (!tab.path) { e.stopPropagation(); startRename(tab); } }}
       >
-        <span class="name">{tab.title}</span>
+        {#if renamingTabId === tab.id}
+          <input
+            class="tab-rename"
+            bind:this={renameInput}
+            bind:value={renameValue}
+            onpointerdown={(e) => e.stopPropagation()}
+            onkeydown={(e) => onRenameKey(e, tab)}
+            onblur={() => commitRename(tab)}
+          />
+        {:else}
+          <span class="name">{tab.title}</span>
+        {/if}
         <button
           class="close"
           class:dirty={tab.dirty}
@@ -323,6 +371,19 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+  .tab-rename {
+    flex: 1;
+    min-width: 0;
+    height: 22px;
+    padding: 0 4px;
+    background: var(--surface-2);
+    color: var(--fg);
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    font-size: 12px;
+    outline: none;
+    margin-right: 2px;
   }
   .close {
     position: relative;

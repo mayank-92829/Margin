@@ -132,6 +132,9 @@ const handlers: Record<string, (a: Args) => unknown> = {
     files.set(existing?.path ?? path, f);
     return stat(f);
   },
+  delete_file: ({ path }) => {
+    files.delete(path);
+  },
   stat_files: ({ paths }) => paths.map((p: string) => {
     const hit = find(p);
     return hit ? stat(hit.file) : null;

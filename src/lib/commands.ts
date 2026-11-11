@@ -1,6 +1,7 @@
-import { copyLineDown, deleteLine, moveLineDown, moveLineUp, toggleComment } from "@codemirror/commands";
+import { copyLineDown, deleteLine, indentSelection, moveLineDown, moveLineUp, toggleComment } from "@codemirror/commands";
 import { foldAll, unfoldAll } from "@codemirror/language";
 import { selectSelectionMatches } from "@codemirror/search";
+import { EditorSelection } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
@@ -12,7 +13,7 @@ import * as tx from "./editor/transforms";
 import { ENCODINGS, encodingLabel } from "./encodings";
 import { ipc, parseError } from "./ipc";
 import { parseJsonc } from "./jsonc";
-import { basename, dirname } from "./path";
+import { basename, dirname, joinPath } from "./path";
 import { serializeSettings, setSetting, settings, settingsMeta, type Settings } from "./settings.svelte";
 import {
   activateIndex,
@@ -266,6 +267,92 @@ async function importVSCodeTheme(): Promise<void> {
   }
 }
 
+export function formatDocument(): void {
+  const view = getView();
+  if (!view) return;
+  const tab = textTab();
+  if (!tab) return;
+  const { state, dispatch } = view;
+
+  if (tab.language === "JSON") {
+    try {
+      const text = state.sliceDoc();
+      const obj = JSON.parse(text);
+      const indent = tab.indent?.spaces ? tab.indent.size : 2;
+      const formatted = JSON.stringify(obj, null, indent);
+      dispatch({
+        changes: { from: 0, to: text.length, insert: formatted },
+      });
+      toast("Formatted JSON", { ms: 1000 });
+      return;
+    } catch {
+      // Fall back to indentation
+    }
+  }
+
+  const sel = state.selection.main;
+  if (sel.empty) {
+    const fullRange = EditorSelection.range(0, state.doc.length);
+    const tempState = state.update({ selection: EditorSelection.create([fullRange]) });
+    view.setState(tempState.state);
+    indentSelection(view);
+    const pos = Math.min(sel.head, view.state.doc.length);
+    view.dispatch({ selection: EditorSelection.cursor(pos) });
+  } else {
+    indentSelection(view);
+  }
+  toast("Document formatted", { ms: 1000 });
+}
+
+async function collectFiles(dir: string, max = 1500): Promise<string[]> {
+  const result: string[] = [];
+  const queue = [dir];
+  const ignore = new Set([".git", "node_modules", "target", "dist", "build", ".claude", "$recycle.bin"]);
+  while (queue.length > 0 && result.length < max) {
+    const current = queue.shift()!;
+    try {
+      const entries = await ipc.listDir(current);
+      for (const e of entries) {
+        if (ignore.has(e.name.toLowerCase())) continue;
+        const full = joinPath(current, e.name);
+        if (e.dir) {
+          queue.push(full);
+        } else {
+          result.push(full);
+          if (result.length >= max) break;
+        }
+      }
+    } catch {
+      // ignore unreadable dirs
+    }
+  }
+  return result;
+}
+
+export async function quickOpenFile(): Promise<void> {
+  const root = ui.sidebar.folder;
+  if (!root) {
+    toast("Open a folder first (Ctrl+Shift+O) to use Quick Open.", {
+      action: { label: "Open folder", run: openFolderDialog },
+    });
+    return;
+  }
+  const files = await collectFiles(root);
+  const items: PaletteItem[] = files.map((f) => {
+    const rel = f.startsWith(root) ? f.slice(root.length).replace(/^[\\/]/, "") : f;
+    return {
+      id: f,
+      label: basename(f),
+      detail: rel,
+    };
+  });
+  openPalette({
+    placeholder: "Search files in folder…",
+    items,
+    onSelect: (item) => openFile(item.id),
+  });
+}
+
 // ---------------------------------------------------------------- pickers
 
 export function pickTheme(): void {
@@ -418,6 +505,7 @@ export const commands: Command[] = [
   { id: "file.open", title: "Open…", category: "File", keys: ["Ctrl+O"], run: openWithDialog },
   { id: "file.openRecent", title: "Open Recent…", category: "File", keys: ["Ctrl+R"], run: pickRecent },
   { id: "file.openFolder", title: "Open Folder…", category: "File", keys: ["Ctrl+Shift+O"], run: openFolderDialog },
+  { id: "file.quickOpen", title: "Quick Open File…", category: "File", keys: ["Ctrl+P"], run: quickOpenFile },
   { id: "file.closeFolder", title: "Close Folder", category: "File", run: () => setFolder(null) },
   { id: "file.save", title: "Save", category: "File", keys: ["Ctrl+S"], run: () => activeTab() && saveTab(activeTab()!) },
   { id: "file.saveAs", title: "Save As…", category: "File", keys: ["Ctrl+Shift+S"], run: () => activeTab() && saveTab(activeTab()!, true) },
@@ -460,6 +548,7 @@ export const commands: Command[] = [
   { id: "edit.deleteLine", title: "Delete Line", category: "Edit", hint: "Ctrl+Shift+K", run: edit(deleteLine) },
   { id: "edit.foldAll", title: "Fold All", category: "Edit", run: edit(foldAll) },
   { id: "edit.unfoldAll", title: "Unfold All", category: "Edit", run: edit(unfoldAll) },
+  { id: "edit.format", title: "Format Document", category: "Edit", keys: ["Shift+Alt+F", "Ctrl+Shift+I"], run: formatDocument },
   { id: "edit.stats", title: "Document Statistics", category: "Edit", run: showStats },
   {
     id: "edit.readOnly",
@@ -510,7 +599,7 @@ export const commands: Command[] = [
   { id: "view.markdownSplit", title: "Markdown: Side-by-Side", category: "View", keys: ["Ctrl+Shift+E"], run: () => markdownMode("split") },
   { id: "view.markdownSource", title: "Markdown: Source", category: "View", run: () => markdownMode("source") },
   { id: "view.markdownPreview", title: "Markdown: Preview", category: "View", run: () => markdownMode("preview") },
-  { id: "view.language", title: "Change Language Mode…", category: "View", run: pickLanguage },
+  { id: "view.language", title: "Change Language Mode…", category: "View", keys: ["Alt+L"], run: pickLanguage },
   { id: "view.indent", title: "Change Indentation…", category: "View", run: pickIndent },
   { id: "view.wordWrap", title: "Toggle Word Wrap", category: "View", keys: ["Alt+Z"], run: toggle("wordWrap", "Word wrap") },
   { id: "view.lineNumbers", title: "Toggle Line Numbers", category: "View", keys: ["Ctrl+Alt+L"], run: toggle("lineNumbers", "Line numbers") },

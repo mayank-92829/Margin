@@ -64,6 +64,7 @@ export const ipc = {
     invoke<OpenedFile>("read_text_file", { path, maxBytes, encoding: encoding ?? null }),
   writeTextFile: (path: string, content: string, encoding: string, bom: boolean, eol: Eol) =>
     invoke<FileStat>("write_text_file", { path, content, encoding, bom, eol }),
+  deleteFile: (path: string) => invoke<void>("delete_file", { path }),
   statFiles: (paths: string[]) => invoke<(FileStat | null)[]>("stat_files", { paths }),
   saveSettings: (text: string) => invoke<void>("save_settings", { text }),
   saveSession: (text: string) => invoke<void>("save_session", { text }),

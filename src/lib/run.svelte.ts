@@ -4,7 +4,7 @@ import { ipc, parseError } from "./ipc";
 import { basename, dirname, extname, joinPath, resolvePath } from "./path";
 import { defaultExtForLanguage, expand, runnerFor, templateVars } from "./runners";
 import { settings } from "./settings.svelte";
-import { activeTab, openFile, saveTab, selectLine, stateOf, type Tab } from "./tabs.svelte";
+import { activeTab, onTabClosed, openFile, saveTab, selectLine, stateOf, type Tab } from "./tabs.svelte";
 import { toast, ui } from "./ui.svelte";
 
 export { runnerFor } from "./runners";
@@ -173,6 +173,25 @@ function cantRun(path: string): void {
   });
 }
 
+const tempFilesByTab = new Map<string, string[]>();
+
+export function registerTempFile(tabId: string, path: string): void {
+  const list = tempFilesByTab.get(tabId) ?? [];
+  if (!list.includes(path)) list.push(path);
+  tempFilesByTab.set(tabId, list);
+}
+
+export function cleanupTabTempFiles(tabId: string): void {
+  const list = tempFilesByTab.get(tabId);
+  if (!list) return;
+  for (const p of list) {
+    ipc.deleteFile(p).catch(() => {});
+  }
+  tempFilesByTab.delete(tabId);
+}
+
+onTabClosed(cleanupTabTempFiles);
+
 export function isRunning(): boolean {
   return run.phase === "compiling" || run.phase === "running";
 }
@@ -194,6 +213,7 @@ export async function build(andRun: boolean): Promise<void> {
     const state = stateOf(tab);
     const content = state ? state.doc.toString() : "";
     await ipc.writeTextFile(path, content, tab.encoding || "UTF-8", false, tab.eol || "LF");
+    registerTempFile(tab.id, path);
   }
 
   let runner = runnerFor(path, tab.language);
@@ -209,6 +229,7 @@ export async function build(andRun: boolean): Promise<void> {
   if (isRunning()) await stop();
   const gen = ++generation;
   const vars = templateVars(path);
+  if (!tab.path && vars.exe) registerTempFile(tab.id, vars.exe);
   if (settings.clearOutputOnRun) clearOutput();
   else if (output.chunks.length) emit("\n", "info");
   run.used = true;

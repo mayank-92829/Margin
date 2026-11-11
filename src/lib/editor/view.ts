@@ -1,5 +1,5 @@
 import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
-import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
+import { addCursorAbove, addCursorBelow, defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { bracketMatching, codeFolding, foldGutter, foldKeymap, indentOnInput, indentUnit, syntaxHighlighting } from "@codemirror/language";
 import { highlightSelectionMatches, search, selectNextOccurrence, selectSelectionMatches } from "@codemirror/search";
 import { Compartment, EditorSelection, EditorState, Prec, type Extension, type Text } from "@codemirror/state";
@@ -194,6 +194,10 @@ const baseTheme = EditorView.theme({
 const extraKeys = keymap.of([
   { key: "Mod-d", run: selectNextOccurrence, preventDefault: true },
   { key: "Mod-Shift-l", run: selectSelectionMatches, preventDefault: true },
+  { key: "Alt-Shift-ArrowUp", run: addCursorAbove, preventDefault: true },
+  { key: "Alt-Shift-ArrowDown", run: addCursorBelow, preventDefault: true },
+  { key: "Ctrl-Alt-ArrowUp", run: addCursorAbove, preventDefault: true },
+  { key: "Ctrl-Alt-ArrowDown", run: addCursorBelow, preventDefault: true },
 ]);
 
 export function createEditorState(

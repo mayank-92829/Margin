@@ -736,11 +736,18 @@ export function autoSaveOnBlur(): void {
 
 // ---------------------------------------------------------------- closing
 
+type TabClosedListener = (id: string) => void;
+const tabClosedListeners: TabClosedListener[] = [];
+export function onTabClosed(fn: TabClosedListener): void {
+  tabClosedListeners.push(fn);
+}
+
 function removeTab(tab: Tab, remember = true, activateNext = true): void {
   const list = tabsState.list;
   const i = list.findIndex((t) => t.id === tab.id);
   if (i < 0) return;
   if (tab.large) ipc.largeClose(tab.large.id).catch(() => {});
+  tabClosedListeners.forEach((fn) => fn(tab.id));
   if (remember && tab.path) {
     const at = closed.findIndex((p) => samePath(p, tab.path!));
     if (at >= 0) closed.splice(at, 1);

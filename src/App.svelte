@@ -211,7 +211,11 @@
     (async () => {
       const started = (async () => {
         try {
-          await restoreSession(boot.sessionText);
+          if (settings.restoreSession || settings.rememberUnsaved) {
+            await restoreSession(boot.sessionText);
+          } else {
+            ipc.pruneBackups([]).catch(() => {});
+          }
           const pending = await ipc.takePendingFiles();
           if (pending.length) await openAny(pending);
         } catch (e) {

@@ -132,6 +132,7 @@ pub fn run() {
             app_ready,
             files::read_text_file,
             files::write_text_file,
+            files::delete_file,
             files::stat_files,
             files::list_dir,
             files::is_dir,
