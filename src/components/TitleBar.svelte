@@ -7,8 +7,8 @@
   import { settings } from "../lib/settings.svelte";
   import { build, isRunning, run, runnerFor, stop } from "../lib/run.svelte";
   import { toggleSidebar } from "../lib/sidebar.svelte";
-  import { activate, activeTab, closeTab, closeTabs, moveTab, newTab, reopenClosed, setLanguage, tabsState, type Tab } from "../lib/tabs.svelte";
-  import { detectLanguage } from "../lib/editor/languages";
+  import { activate, activeTab, closeTab, closeTabs, moveTab, newTab, reopenClosed, setLanguage, stateOf, tabsState, type Tab } from "../lib/tabs.svelte";
+  import { detectLanguage, detectLanguageFromContent } from "../lib/editor/languages";
   import { openMenu, toast, ui, type MenuItem } from "../lib/ui.svelte";
   import Icon from "./Icon.svelte";
 
@@ -158,15 +158,14 @@
           hint: hint("view.language"),
           run: () => pickLanguage(),
         },
-        ...(tab.path
-          ? [
-              {
-                label: "Auto Detect",
-                checked: tab.languageAuto,
-                run: () => setLanguage(tab, detectLanguage(tab.path)?.name ?? null, true),
-              },
-            ]
-          : []),
+        {
+          label: "Auto Detect",
+          checked: tab.languageAuto,
+          run: () => {
+            const detected = detectLanguage(tab.path)?.name ?? (tab.loaded ? detectLanguageFromContent(stateOf(tab)?.doc.sliceString(0, 2048) ?? "") : null);
+            setLanguage(tab, detected ?? null, true);
+          },
+        },
       ]
     );
   }

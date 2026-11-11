@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.1 — 2026-11-11
+
+### Fixed & Improved
+- Content-based language auto-detection: typing or pasting code into an untitled unsaved tab immediately auto-detects the programming language (e.g. `print(...)` -> Python, `#include <stdio.h>` -> C, `fn main` -> Rust, `<!DOCTYPE html>` -> HTML, `package main` -> Go, `public class` -> Java, `console.log` -> JavaScript) and applies syntax highlighting in real time.
+- Silent window close: closing Margin with unsaved tabs discards unsaved tabs and scratch files immediately without prompting "Save changes?", closing clean and starting fresh on next launch.
+- Silent tab close for unsaved tabs: closing an individual untitled scratch tab closes immediately without save prompt.
+
 ## 1.3.0 — 2026-11-11
 
 ### Added

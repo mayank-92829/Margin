@@ -6,7 +6,7 @@ import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialo
 import { boot } from "./boot";
 import { detectIndent } from "./editor/extras";
 import { getView } from "./editor/instance";
-import { detectLanguage, languageByName, loadLanguage } from "./editor/languages";
+import { detectLanguage, detectLanguageFromContent, languageByName, loadLanguage } from "./editor/languages";
 import { countWords } from "./editor/transforms";
 import { configKey, createEditorState, ensureVim, isVimLoaded, languageEffect, onEditorUpdate, reconfigureEffects, type EditorConfig } from "./editor/view";
 import { ipc, parseError, type Eol, type FileStat } from "./ipc";
@@ -171,7 +171,7 @@ export function editorConfigFor(tab: Tab): EditorConfig {
       textWidth: fs.textWidth || (ui.zen ? 72 : 0),
     },
     wordWrap: fs.wordWrap,
-    lineNumbers: fs.lineNumbers || (settings.codeLineNumbers && !!runnerFor(tab.path)),
+    lineNumbers: fs.lineNumbers || (settings.codeLineNumbers && !!runnerFor(tab.path, tab.language)),
     codeFolding: fs.codeFolding,
     highlightActiveLine: fs.highlightActiveLine,
     showWhitespace: fs.showWhitespace,
@@ -345,6 +345,17 @@ onEditorUpdate((u: ViewUpdate) => {
       refreshDirty(tab);
       scheduleSession(true);
       scheduleAutoSave(tab);
+
+      if (!tab.path && tab.languageAuto && tab.kind === "text") {
+        const state = stateOf(tab);
+        if (state) {
+          const sample = state.doc.sliceString(0, 2048);
+          const detected = detectLanguageFromContent(sample);
+          if (detected !== tab.language) {
+            setLanguage(tab, detected, true);
+          }
+        }
+      }
     }, 150);
   }
   if (u.docChanged || u.selectionSet) updateStatus(u.state, false);
@@ -357,7 +368,11 @@ export function newTab(content = ""): Tab {
   const d = tabData(tab);
   d.state = createEditorState(content, editorConfigFor(tab), []);
   d.configKey = configKey(editorConfigFor(tab));
-  if (content) refreshDirty(tab);
+  if (content) {
+    refreshDirty(tab);
+    const detected = detectLanguageFromContent(content);
+    if (detected) setLanguage(tab, detected, true);
+  }
   activate(tab.id);
   scheduleSession();
   return tab;
@@ -774,7 +789,7 @@ function removeTab(tab: Tab, remember = true, activateNext = true): void {
 export async function closeTab(id: string): Promise<boolean> {
   const tab = findTab(id);
   if (!tab) return true;
-  if (tab.dirty) {
+  if (tab.dirty && tab.path) {
     if (tabsState.activeId !== id) await activate(id);
     const r = await ask({
       title: `Save changes to “${tab.title}”?`,
@@ -1091,27 +1106,11 @@ export async function restoreSession(text: string | null): Promise<void> {
   if (active) await activate(active.id);
 }
 
-/** Called before the window closes. Returns false if the user cancelled. */
+/** Called before the window closes. Discards unsaved tabs/scratch, closes saved ones, and cleans up. */
 export async function prepareExit(): Promise<boolean> {
   stashActive();
-  if (!settings.rememberUnsaved) {
-    const dirty = tabsState.list.filter((t) => t.dirty);
-    if (dirty.length) {
-      const r = await ask({
-        title: dirty.length === 1 ? `Save changes to “${dirty[0].title}”?` : `Save changes to ${dirty.length} files?`,
-        message: "Your changes will be lost if you don't save them.",
-        buttons: [
-          { label: "Cancel", value: "cancel" },
-          { label: "Don't save", value: "discard", danger: true },
-          { label: dirty.length === 1 ? "Save" : "Save all", value: "save", primary: true },
-        ],
-        cancelValue: "cancel",
-      });
-      if (r === "cancel") return false;
-      if (r === "save") {
-        for (const t of dirty) if (!(await saveTab(t))) return false;
-      }
-    }
+  for (const tab of tabsState.list) {
+    tabClosedListeners.forEach((fn) => fn(tab.id));
   }
   await persistSession(true);
   return true;

@@ -8,7 +8,7 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { openPath, revealItemInDir } from "@tauri-apps/plugin-opener";
 import { boot } from "./boot";
 import { getView } from "./editor/instance";
-import { detectLanguage, languages } from "./editor/languages";
+import { detectLanguage, detectLanguageFromContent, languages } from "./editor/languages";
 import * as tx from "./editor/transforms";
 import { ENCODINGS, encodingLabel } from "./encodings";
 import { ipc, parseError } from "./ipc";
@@ -390,7 +390,8 @@ export function pickRecent(): void {
 export function pickLanguage(): void {
   const t = textTab();
   if (!t) return;
-  const auto = detectLanguage(t.path)?.name ?? "Plain Text";
+  const contentLang = t.loaded ? detectLanguageFromContent(stateOf(t)?.doc.sliceString(0, 2048) ?? "") : null;
+  const auto = detectLanguage(t.path)?.name ?? contentLang ?? "Plain Text";
   const items: PaletteItem[] = [
     { id: "__auto", label: "Auto Detect", detail: auto, current: t.languageAuto },
     { id: "__plain", label: "Plain Text", current: !t.languageAuto && !t.language },
@@ -402,8 +403,12 @@ export function pickLanguage(): void {
     placeholder: "Select language mode",
     items,
     onSelect: (item) => {
-      if (item.id === "__auto") setLanguage(t, detectLanguage(t.path)?.name ?? null, true);
-      else setLanguage(t, item.id === "__plain" ? null : item.id, false);
+      if (item.id === "__auto") {
+        const detected = detectLanguage(t.path)?.name ?? (t.loaded ? detectLanguageFromContent(stateOf(t)?.doc.sliceString(0, 2048) ?? "") : null);
+        setLanguage(t, detected ?? null, true);
+      } else {
+        setLanguage(t, item.id === "__plain" ? null : item.id, false);
+      }
     },
   });
 }
