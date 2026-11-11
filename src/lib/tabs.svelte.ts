@@ -12,7 +12,7 @@ import { configKey, createEditorState, ensureVim, isVimLoaded, languageEffect, o
 import { ipc, parseError, type Eol, type FileStat } from "./ipc";
 import { basename, dirname, extname, normalize, resolvePath, samePath } from "./path";
 import { loadSettingsText, settings, settingsFor, settingsMeta, type ViewMode } from "./settings.svelte";
-import { runnerFor } from "./runners";
+import { defaultExtForLanguage, runnerFor } from "./runners";
 import { reloadCustomThemes } from "./theme.svelte";
 import { ask, toast, ui } from "./ui.svelte";
 
@@ -577,6 +577,8 @@ const saving = new Map<string, Promise<boolean>>();
 function suggestedName(tab: Tab): string {
   const base = tab.path ? basename(tab.path) : untitledTitle(stateOf(tab)?.doc ?? null).replace(/[\\/:*?"<>|…]+/g, "").trim().slice(0, 60) || "Untitled";
   if (tab.path) return base;
+  const langExt = defaultExtForLanguage(tab.language);
+  if (langExt) return `${base}.${langExt}`;
   return base + (isMarkdown(tab) ? ".md" : ".txt");
 }
 
@@ -587,7 +589,11 @@ async function pickSavePath(tab: Tab): Promise<string | null> {
   const md = { name: "Markdown", extensions: ["md"] };
   const all = { name: "All Files", extensions: ["*"] };
   const ext = extname(name);
-  const filters = ext === "md" ? [md, text, all] : ext === "txt" || !ext ? [text, md, all] : [all, text, md];
+  const customFilter = ext && ext !== "txt" && ext !== "md" ? [{ name: `${tab.language ?? ext.toUpperCase()} Files`, extensions: [ext] }] : [];
+  const filters = [
+    ...customFilter,
+    ...(ext === "md" ? [md, text, all] : ext === "txt" || !ext ? [text, md, all] : [all, text, md]),
+  ];
   const p = await saveDialog({ defaultPath: dir ? resolvePath(dir, name) : name, filters });
   return p ?? null;
 }

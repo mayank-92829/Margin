@@ -50,9 +50,25 @@ export function languageForExt(ext: string): Language | undefined {
   return byExt.get(ext);
 }
 
-export function runnerFor(path: string | null): Runner | null {
-  if (!path) return null;
-  const ext = extname(path);
+export function defaultExtForLanguage(languageName: string | null | undefined): string | null {
+  if (!languageName) return null;
+  const l = LANGUAGES.find((x) => x.name.toLowerCase() === languageName.toLowerCase());
+  if (l && l.exts.length > 0) return l.exts[0];
+  const lower = languageName.toLowerCase();
+  if (lower === "markdown") return "md";
+  if (lower === "html") return "html";
+  if (lower === "css") return "css";
+  if (lower === "json") return "json";
+  return null;
+}
+
+export function runnerFor(path: string | null, language?: string | null): Runner | null {
+  let ext = path ? extname(path) : "";
+  if (!ext && language) {
+    const l = LANGUAGES.find((x) => x.name.toLowerCase() === language.toLowerCase());
+    if (l && l.exts.length > 0) ext = l.exts[0];
+  }
+  if (!ext) return null;
   const custom = settings.runners[ext];
   const base = byExt.get(ext)?.runner;
   if (custom) return { compile: "compile" in custom ? custom.compile || undefined : base?.compile, run: custom.run || base?.run || "" };

@@ -1,9 +1,10 @@
 import { listen } from "@tauri-apps/api/event";
+import { tempDir } from "@tauri-apps/api/path";
 import { ipc, parseError } from "./ipc";
 import { basename, dirname, extname, joinPath, resolvePath } from "./path";
-import { expand, runnerFor, templateVars } from "./runners";
+import { defaultExtForLanguage, expand, runnerFor, templateVars } from "./runners";
 import { settings } from "./settings.svelte";
-import { activeTab, openFile, saveTab, selectLine, type Tab } from "./tabs.svelte";
+import { activeTab, openFile, saveTab, selectLine, stateOf, type Tab } from "./tabs.svelte";
 import { toast, ui } from "./ui.svelte";
 
 export { runnerFor } from "./runners";
@@ -147,6 +148,9 @@ async function cargoRoot(path: string): Promise<string | null> {
 
 async function prepare(tab: Tab): Promise<boolean> {
   if (!tab.path) {
+    if (tab.language && runnerFor(null, tab.language)) {
+      return true;
+    }
     toast("Save the file first (with an extension like .c, .cpp, .py) so Margin knows how to run it.");
     return saveTab(tab, true);
   }
@@ -156,7 +160,7 @@ async function prepare(tab: Tab): Promise<boolean> {
 
 function cantRun(path: string): void {
   const ext = extname(path);
-  toast(ext ? `Margin doesn't know how to run .${ext} files yet.` : "Save the file with an extension (like .c or .py) to run it.", {
+  toast(ext ? `Margin doesn't know how to run .${ext} files yet.` : `Margin doesn't know how to run ${path || "this file"} yet.`, {
     action: ext
       ? {
           label: "Set up",
@@ -177,14 +181,25 @@ export function isRunning(): boolean {
 export async function build(andRun: boolean): Promise<void> {
   const tab = activeTab();
   if (!tab || tab.kind !== "text") return;
-  if (tab.path && !runnerFor(tab.path)) return cantRun(tab.path);
-  if (!(await prepare(tab)) || !tab.path) return;
-  const path = tab.path;
-  const ext = extname(path);
-  let runner = runnerFor(path);
+  const runnerDef = runnerFor(tab.path, tab.language);
+  if (!runnerDef) return cantRun(tab.path || tab.language || "");
+  if (!(await prepare(tab))) return;
+
+  let path = tab.path;
+  const ext = tab.path ? extname(tab.path) : (defaultExtForLanguage(tab.language) ?? "");
+  if (!path) {
+    const tdir = await tempDir();
+    const safeName = (tab.title || "untitled").replace(/[\\/:*?"<>|…\s]+/g, "_");
+    path = joinPath(tdir, `margin_${safeName}_${tab.id}.${ext}`);
+    const state = stateOf(tab);
+    const content = state ? state.doc.toString() : "";
+    await ipc.writeTextFile(path, content, tab.encoding || "UTF-8", false, tab.eol || "LF");
+  }
+
+  let runner = runnerFor(path, tab.language);
   let cwd = dirname(path);
-  if (ext === "rs" && !settings.runners.rs) {
-    const root = await cargoRoot(path);
+  if (ext === "rs" && !settings.runners.rs && tab.path) {
+    const root = await cargoRoot(tab.path);
     if (root) {
       runner = { compile: "cargo build", run: "cargo run -q" };
       cwd = root;

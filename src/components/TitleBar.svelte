@@ -2,19 +2,20 @@
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { revealItemInDir } from "@tauri-apps/plugin-opener";
   import { tick } from "svelte";
-  import { runCommand, shortcutLabel, commands } from "../lib/commands";
+  import { runCommand, shortcutLabel, commands, pickLanguage } from "../lib/commands";
   import { IS_WINDOWS } from "../lib/platform";
   import { settings } from "../lib/settings.svelte";
   import { build, isRunning, run, runnerFor, stop } from "../lib/run.svelte";
   import { toggleSidebar } from "../lib/sidebar.svelte";
-  import { activate, activeTab, closeTab, closeTabs, moveTab, newTab, reopenClosed, tabsState, type Tab } from "../lib/tabs.svelte";
+  import { activate, activeTab, closeTab, closeTabs, moveTab, newTab, reopenClosed, setLanguage, tabsState, type Tab } from "../lib/tabs.svelte";
+  import { detectLanguage } from "../lib/editor/languages";
   import { openMenu, toast, ui, type MenuItem } from "../lib/ui.svelte";
   import Icon from "./Icon.svelte";
 
   const win = getCurrentWindow();
   const current = $derived(activeTab());
   const showRun = $derived(settings.runButtons === "always" || (settings.runButtons === "auto" && run.used));
-  const runner = $derived(showRun && current?.kind === "text" ? runnerFor(current.path) : null);
+  const runner = $derived(showRun && current?.kind === "text" ? runnerFor(current.path, current.language) : null);
   const running = $derived(isRunning());
   let strip: HTMLDivElement | undefined = $state();
   let drag: { id: string; startX: number; moved: boolean; index: number } | null = null;
@@ -87,6 +88,53 @@
     ]);
   }
 
+  function typeMenu(e: MouseEvent) {
+    if (!current || current.kind !== "text") return;
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const tab = current;
+    const common = [
+      { label: "Plain Text", lang: null },
+      { label: "C", lang: "C" },
+      { label: "C++", lang: "C++" },
+      { label: "Rust", lang: "Rust" },
+      { label: "Python", lang: "Python" },
+      { label: "Markdown", lang: "Markdown" },
+      { label: "JavaScript", lang: "JavaScript" },
+      { label: "TypeScript", lang: "TypeScript" },
+      { label: "HTML", lang: "HTML" },
+      { label: "CSS", lang: "CSS" },
+      { label: "JSON", lang: "JSON" },
+      { label: "Go", lang: "Go" },
+      { label: "Java", lang: "Java" },
+    ];
+    openMenu(
+      r.left,
+      r.bottom + 4,
+      [
+        ...common.map((c) => ({
+          label: c.label,
+          checked: tab.language === c.lang || (!tab.language && c.lang === null && !tab.languageAuto),
+          run: () => setLanguage(tab, c.lang, false),
+        })),
+        { separator: true },
+        {
+          label: "More languages…",
+          hint: hint("view.language"),
+          run: () => pickLanguage(),
+        },
+        ...(tab.path
+          ? [
+              {
+                label: "Auto Detect",
+                checked: tab.languageAuto,
+                run: () => setLanguage(tab, detectLanguage(tab.path)?.name ?? null, true),
+              },
+            ]
+          : []),
+      ]
+    );
+  }
+
   function mainMenu(e: MouseEvent) {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
     openMenu(
@@ -106,7 +154,7 @@
         item("Replace", "edit.replace"),
         item("Go to line…", "edit.gotoLine"),
         { separator: true },
-        ...(current?.kind === "text" && runnerFor(current.path) ? [item("Compile & run", "run.run"), item("Compile", "run.build")] : []),
+        ...(current?.kind === "text" && runnerFor(current.path, current.language) ? [item("Compile & run", "run.run"), item("Compile", "run.build")] : []),
         item("Sidebar", "view.sidebar", { checked: ui.sidebar.open }),
         item("Output panel", "run.output"),
         item("Word wrap", "view.wordWrap", { checked: settings.wordWrap }),
@@ -190,6 +238,17 @@
         </button>
       {/if}
     </div>
+  {/if}
+  {#if current && current.kind === "text"}
+    <button
+      class="type-btn"
+      aria-label="Select file type"
+      title="File type: {current.language ?? 'Plain Text'} (click to change)"
+      onclick={typeMenu}
+    >
+      <span class="type-label">{current.language ?? "Plain Text"}</span>
+      <Icon name="down" size={10} />
+    </button>
   {/if}
   <button class="icon-btn menu-btn" aria-label="Menu" title="Menu" onclick={mainMenu}><Icon name="more" /></button>
   <!-- Linux desktops draw their own title bar with these buttons. -->
@@ -325,6 +384,32 @@
   .menu-btn {
     align-self: center;
     margin-right: 4px;
+  }
+  .type-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 26px;
+    padding: 0 8px;
+    margin-right: 4px;
+    align-self: center;
+    border-radius: 6px;
+    font-size: 11.5px;
+    color: var(--muted);
+    background: transparent;
+    transition: background 0.12s, color 0.12s;
+    user-select: none;
+    max-width: 140px;
+    flex-shrink: 0;
+  }
+  .type-btn:hover {
+    background: var(--surface-2);
+    color: var(--fg);
+  }
+  .type-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .side-btn {
     align-self: center;

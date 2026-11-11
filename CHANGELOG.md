@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.0 — 2026-11-11
+
+### Added
+- File type / language selector in the title bar (left of the menu button) to select any language mode for both saved and unsaved files.
+- Run unsaved code: compile and run unsaved tabs without needing to save them to disk first (executed seamlessly via temporary scratch files).
+- Pre-fill matching file extension and filters when saving an untitled file with a selected language mode.
+
 ## 1.1.0 — 2026-10-30
 
 ### Added
