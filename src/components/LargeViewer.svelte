@@ -262,7 +262,8 @@
     font-family: var(--editor-font);
     font-size: var(--editor-size);
     letter-spacing: var(--editor-ls);
-    font-variant-ligatures: var(--editor-lig);
+    font-variant-ligatures: none;
+    font-feature-settings: "calt" 0, "liga" 0;
   }
   .gutter {
     flex-shrink: 0;

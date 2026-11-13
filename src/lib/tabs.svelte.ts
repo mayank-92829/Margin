@@ -169,7 +169,6 @@ export function editorConfigFor(tab: Tab): EditorConfig {
       size: Math.round(fs.fontSize * settings.zoom) / 100,
       lineHeight: fs.lineHeight,
       letterSpacing: fs.letterSpacing,
-      ligatures: fs.ligatures,
       textWidth: fs.textWidth || (ui.zen ? 72 : 0),
     },
     wordWrap: fs.wordWrap,

@@ -13,7 +13,6 @@ export interface Settings {
   fontSize: number;
   lineHeight: number;
   letterSpacing: number;
-  ligatures: boolean;
   zoom: number;
   cursorStyle: "bar" | "block" | "underline";
   cursorBlink: boolean;
@@ -81,7 +80,6 @@ export const DEFAULTS: Settings = {
   fontSize: 15,
   lineHeight: 1.6,
   letterSpacing: 0,
-  ligatures: true,
   zoom: 100,
   cursorStyle: "bar",
   cursorBlink: true,
@@ -168,7 +166,7 @@ const RANGES: Partial<Record<keyof Settings, [number, number]>> = {
 
 /** Settings that only affect the editor and may differ per file type. */
 export const PER_FILE_KEYS = [
-  "fontFamily", "fontSize", "lineHeight", "letterSpacing", "ligatures", "textWidth",
+  "fontFamily", "fontSize", "lineHeight", "letterSpacing", "textWidth",
   "wordWrap", "lineNumbers", "highlightActiveLine", "showWhitespace", "highlightTrailingWhitespace",
   "tabSize", "insertSpaces", "detectIndentation", "autoCloseBrackets", "bracketMatching", "codeFolding",
   "highlightSelectionMatches", "syntaxHighlighting", "spellcheck", "scrollPastEnd",

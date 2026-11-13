@@ -28,7 +28,6 @@ export interface EditorFont {
   size: number;
   lineHeight: number;
   letterSpacing: number;
-  ligatures: boolean;
   /** Max text column in characters; 0 = full width. */
   textWidth: number;
 }
@@ -89,8 +88,8 @@ function fontTheme(f: EditorFont): Extension {
         fontFamily: `"${family.replace(/"/g, "")}", var(--mono-font)`,
         lineHeight: String(f.lineHeight),
         letterSpacing: `${f.letterSpacing}px`,
-        fontVariantLigatures: f.ligatures ? "normal" : "none",
-        fontFeatureSettings: f.ligatures ? "normal" : '"calt" 0, "liga" 0',
+        fontVariantLigatures: "none",
+        fontFeatureSettings: '"calt" 0, "liga" 0',
       },
       ".cm-content": { maxWidth: f.textWidth ? `calc(${f.textWidth}ch + 56px)` : "none" },
     });

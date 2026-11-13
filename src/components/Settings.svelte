@@ -32,7 +32,6 @@
         { kind: "number", key: "fontSize", label: "Font size", min: 8, max: 48, step: 1, unit: "px" },
         { kind: "number", key: "lineHeight", label: "Line height", min: 1, max: 3, step: 0.05 },
         { kind: "number", key: "letterSpacing", label: "Letter spacing", min: -2, max: 4, step: 0.1, unit: "px" },
-        { kind: "toggle", key: "ligatures", label: "Font ligatures", desc: "Join characters like => and != when the font supports it." },
         { kind: "number", key: "zoom", label: "Zoom", min: 50, max: 300, step: 10, unit: "%" },
         { kind: "select", key: "cursorStyle", label: "Cursor style", options: [["bar", "Line"], ["block", "Block"], ["underline", "Underline"]] },
         { kind: "toggle", key: "cursorBlink", label: "Blinking cursor" },

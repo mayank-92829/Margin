@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.3 — 2026-11-13
+
+### Removed & Changed
+- Completely removed font ligatures across the editor, large viewer, and preview code blocks: character combinations such as `==`, `->`, `!=`, and `=>` remain standard distinct monospace characters and are never visually joined.
+
 ## 1.3.2 — 2026-11-11
 
 ### Fixed & Improved

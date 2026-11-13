@@ -23,8 +23,8 @@
   --editor-size: 15px;
   --editor-lh: 1.6;
   --editor-ls: 0px;
-  --editor-lig: normal;
-  --editor-features: normal;
+  --editor-lig: none;
+  --editor-features: "calt" 0, "liga" 0;
   --text-width: none;
   --preview-font: var(--ui-font);
   --preview-size: 16px;
@@ -323,6 +323,8 @@ kbd {
   padding: 0.15em 0.4em;
   border-radius: 5px;
   background: var(--surface-2);
+  font-variant-ligatures: none;
+  font-feature-settings: "calt" 0, "liga" 0;
 }
 .preview-body pre {
   padding: 14px 18px;
@@ -331,6 +333,8 @@ kbd {
   border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
   overflow: auto;
   line-height: 1.55;
+  font-variant-ligatures: none;
+  font-feature-settings: "calt" 0, "liga" 0;
 }
 .preview-body pre code {
   padding: 0;

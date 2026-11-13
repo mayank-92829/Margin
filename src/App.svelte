@@ -44,7 +44,6 @@
     root.setProperty("--editor-font", `"${family.replace(/"/g, "")}", var(--mono-font)`);
     root.setProperty("--editor-size", `${(fs.fontSize * settings.zoom) / 100}px`);
     root.setProperty("--editor-ls", `${fs.letterSpacing}px`);
-    root.setProperty("--editor-lig", fs.ligatures ? "normal" : "none");
     const pf = { sans: "var(--ui-font)", serif: 'Georgia, "Sitka Text", Cambria, serif', mono: "var(--mono-font)" }[settings.previewFont];
     root.setProperty("--preview-font", pf);
     root.setProperty("--preview-size", `${(settings.previewFontSize * settings.zoom) / 100}px`);
